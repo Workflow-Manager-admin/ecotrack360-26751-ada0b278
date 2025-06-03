@@ -40,6 +40,8 @@ const INITIAL_GOALS = [
 function GoalTracking() {
   // Goal state (array of goal objects)
   const [goals, setGoals] = useState(INITIAL_GOALS);
+  // Undo state: {type: 'remove'|'complete', goal, index, prevStatus, prevProgress}
+  const [undoState, setUndoState] = useState(null);
   // Track for new goal input UI
   const [showAdd, setShowAdd] = useState(false);
   const [newGoal, setNewGoal] = useState({ title: "", target: "", icon: GOAL_ICONS[0] });
@@ -67,8 +69,17 @@ function GoalTracking() {
   // PUBLIC_INTERFACE
   // Mark a goal as completed, updating its state
   function handleComplete(idx) {
-    setGoals(goals =>
-      goals.map((g, i) =>
+    const goal = goals[idx];
+    if (!goal || goal.progress === 100) return;
+    setUndoState({
+      type: 'complete',
+      goal: { ...goal },
+      index: idx,
+      prevStatus: goal.status,
+      prevProgress: goal.progress
+    });
+    setGoals(gs =>
+      gs.map((g, i) =>
         i === idx && g.progress < 100
           ? { ...g, progress: 100, status: "Achieved" }
           : g
@@ -79,6 +90,12 @@ function GoalTracking() {
   // PUBLIC_INTERFACE
   // Remove a goal (used only for completed goals, UI allows only removal of 100% ones)
   function handleRemove(idx) {
+    const goal = goals[idx];
+    setUndoState({
+      type: 'remove',
+      goal: { ...goal },
+      index: idx
+    });
     setGoals(goals => goals.filter((g, i) => i !== idx));
   }
 
