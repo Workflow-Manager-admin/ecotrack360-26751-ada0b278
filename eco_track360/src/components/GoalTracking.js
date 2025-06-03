@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import UndoNotification from './UndoNotification';
+import ConfirmationModal from './ConfirmationModal';
 
 /**
  * PUBLIC_INTERFACE
@@ -90,14 +91,29 @@ function GoalTracking() {
 
   // PUBLIC_INTERFACE
   // Remove a goal (used only for completed goals, UI allows only removal of 100% ones)
+  const [removeConfirm, setRemoveConfirm] = useState(null); // { goalIdx, goalTitle }
+
   function handleRemove(idx) {
     const goal = goals[idx];
-    setUndoState({
-      type: 'remove',
-      goal: { ...goal },
-      index: idx
-    });
-    setGoals(goals => goals.filter((g, i) => i !== idx));
+    setRemoveConfirm({ idx, title: goal.title });
+  }
+
+  function confirmRemoveGoal() {
+    if (removeConfirm) {
+      const idx = removeConfirm.idx;
+      const goal = goals[idx];
+      setUndoState({
+        type: 'remove',
+        goal: { ...goal },
+        index: idx
+      });
+      setGoals(goals => goals.filter((g, i) => i !== idx));
+    }
+    setRemoveConfirm(null);
+  }
+
+  function cancelRemoveGoal() {
+    setRemoveConfirm(null);
   }
 
   // PUBLIC_INTERFACE
