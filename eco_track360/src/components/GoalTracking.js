@@ -118,6 +118,32 @@ function GoalTracking() {
     );
   }
 
+  // Undo for removal or completion
+  function handleUndo() {
+    if (!undoState) return;
+    if (undoState.type === 'remove') {
+      setGoals(prev =>
+        [
+          ...prev.slice(0, undoState.index),
+          undoState.goal,
+          ...prev.slice(undoState.index)
+        ]
+      );
+    } else if (undoState.type === 'complete') {
+      setGoals(prev =>
+        prev.map((g, i) =>
+          i === undoState.index
+            ? { ...g, progress: undoState.prevProgress, status: undoState.prevStatus }
+            : g
+        )
+      );
+    }
+    setUndoState(null);
+  }
+  function handleDismiss() {
+    setUndoState(null);
+  }
+
   // Break into active/in-progress and completed for display
   const activeGoals = goals.filter(g => g.progress < 100);
   const completedGoals = goals.filter(g => g.progress === 100);
