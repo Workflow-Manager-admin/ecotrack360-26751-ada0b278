@@ -56,26 +56,44 @@ function Profile() {
 
   const fileInputRef = useRef();
 
-  /**
-   * PUBLIC_INTERFACE
-   * Handles change of preference checkboxes.
-   */
+  // INITIAL LOAD — fetch profile from backend on mount
+  useEffect(() => {
+    let ignore = false;
+    setLoading(true);
+    setLoadError("");
+    getProfile()
+      .then(profile => {
+        if (ignore) return;
+        setName(profile.name || "");
+        setEcoPrefs(Array.isArray(profile.ecoPreferences) ? profile.ecoPreferences : []);
+        setAvatarSource(profile.avatarUrl || "");
+        setAvatarType("url");
+        setUploadedAvatar(null);
+        setErrors({});
+      })
+      .catch(err => {
+        setLoadError(err?.message || "Failed to load profile.");
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+    return () => { ignore = true; };
+  }, [isAuthenticated]);
+
+  // Handle preference checkbox
   function handlePrefChange(prefKey) {
     setEcoPrefs((prev) =>
       prev.includes(prefKey)
         ? prev.filter((k) => k !== prefKey)
         : [...prev, prefKey]
     );
+    setSaveError(""); setSaveSuccess("");
   }
 
-  /**
-   * PUBLIC_INTERFACE
-   * Handles file avatar upload.
-   */
+  // Handle avatar file upload (preview only)
   function handleFileChange(e) {
     const file = e.target.files && e.target.files[0];
     if (file && /^image\//.test(file.type)) {
-      // Display the image using object URL
       const url = URL.createObjectURL(file);
       setUploadedAvatar(file);
       setAvatarSource(url);
@@ -90,23 +108,19 @@ function Profile() {
         avatar: "Please choose a valid image file."
       }));
     }
+    setSaveError(""); setSaveSuccess("");
   }
 
-  /**
-   * PUBLIC_INTERFACE
-   * Handles avatar via image URL input.
-   */
+  // Handle avatar via URL input
   function handleAvatarURLChange(e) {
     setAvatarSource(e.target.value.trim());
     setAvatarType("url");
     setUploadedAvatar(null);
     setErrors((err) => ({ ...err, avatar: undefined }));
+    setSaveError(""); setSaveSuccess("");
   }
 
-  /**
-   * PUBLIC_INTERFACE
-   * Validates name field (for demo, just require 2+ chars).
-   */
+  // Name validation (required, min length)
   function validateName(newName) {
     if (!newName.trim()) {
       setErrors((err) => ({ ...err, name: "Name required." }));
@@ -120,17 +134,21 @@ function Profile() {
     return true;
   }
 
-  /**
-   * PUBLIC_INTERFACE
-   * Handles reset button to clear all fields.
-   */
+  // Reset to last loaded profile (not blank), and clear feedback
   function handleReset() {
-    setName("");
-    setAvatarSource("");
-    setAvatarType("url");
-    setUploadedAvatar(null);
-    setEcoPrefs([]);
-    setErrors({});
+    setLoading(true);
+    setSaveError(""); setSaveSuccess("");
+    getProfile()
+      .then(profile => {
+        setName(profile.name || "");
+        setEcoPrefs(Array.isArray(profile.ecoPreferences) ? profile.ecoPreferences : []);
+        setAvatarSource(profile.avatarUrl || "");
+        setAvatarType("url");
+        setUploadedAvatar(null);
+        setErrors({});
+      })
+      .catch(err => setLoadError(err?.message || "Failed to load profile."))
+      .finally(() => setLoading(false));
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
@@ -187,6 +205,7 @@ function Profile() {
       })
       .finally(() => setSaving(false));
   }
+
   // Auth-required logic
   if (!isAuthenticated) {
     return (
