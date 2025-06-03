@@ -73,16 +73,48 @@ function Integrations() {
 
   // PUBLIC_INTERFACE
   // Toggle a single integration (connect/disconnect)
+  const [pendingDisconnect, setPendingDisconnect] = useState(null); // {key, label}
+
   function handleToggle(key) {
-    setUndoState({
-      key,
-      prevState: connections[key],
-      label: MOCK_INTEGRATIONS.find(i => i.key === key)?.label || key
-    });
-    setConnections(conns => ({
-      ...conns,
-      [key]: !conns[key]
-    }));
+    // If connecting, proceed immediately; if disconnecting, confirm
+    if (connections[key]) {
+      // Disconnect: confirm
+      setPendingDisconnect({
+        key,
+        label: MOCK_INTEGRATIONS.find(i => i.key === key)?.label || key
+      });
+    } else {
+      // Connect immediately
+      setUndoState({
+        key,
+        prevState: connections[key],
+        label: MOCK_INTEGRATIONS.find(i => i.key === key)?.label || key
+      });
+      setConnections(conns => ({
+        ...conns,
+        [key]: !conns[key]
+      }));
+    }
+  }
+
+  function confirmDisconnectIntegration() {
+    if (pendingDisconnect) {
+      const key = pendingDisconnect.key;
+      setUndoState({
+        key,
+        prevState: connections[key],
+        label: MOCK_INTEGRATIONS.find(i => i.key === key)?.label || key
+      });
+      setConnections(conns => ({
+        ...conns,
+        [key]: false
+      }));
+    }
+    setPendingDisconnect(null);
+  }
+
+  function cancelDisconnectIntegration() {
+    setPendingDisconnect(null);
   }
 
   // Undo handler
