@@ -1,223 +1,326 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import UndoNotification from './UndoNotification';
 import ConfirmationModal from './ConfirmationModal';
+import LoadingSpinner from './LoadingSpinner';
+import ErrorBanner from './ErrorBanner';
+import { getGoals, addGoal, updateGoal, deleteGoal } from '../api';
+import { useAuth } from '../AuthContext';
 
 /**
  * PUBLIC_INTERFACE
- * GoalTracking lets users create and fully manage climate goals (CRUD: add, edit, and delete), plus progress management, using controlled inputs, input validation, and local React state only.
+ * GoalTracking allows users to persistently create, edit, complete, and remove personal climate goals using backend CRUD endpoints and requires authentication. UI reflects backend state, with loading/error feedback. Undo is optimistic (but syncs from server).
  */
 
 const GOAL_ICONS = [
-  "♻️","🌱","🚲","🥦","🏠","💡","🌲","🦶","🛍️","🥕"
+  "♻️", "🌱", "🚲", "🥦", "🏠", "💡", "🌲", "🦶", "🛍️", "🥕"
 ];
 
-// Demo initial goals
-const INITIAL_GOALS = [
-  {
-    title: "Reduce carbon output by 20% this month",
-    progress: 64,
-    icon: "♻️",
-    target: "20% less (monthly)",
-    status: "Active",
-  },
-  {
-    title: "Walk/bike to work 3x per week",
-    progress: 100,
-    icon: "🚲",
-    target: "9 trips/mo",
-    status: "Achieved",
-  },
-  {
-    title: "Eat 100% plant-based 2 days/week",
-    progress: 47,
-    icon: "🥦",
-    target: "8 of 17 days",
-    status: "In Progress",
-  },
-];
-
-// PUBLIC_INTERFACE
 function GoalTracking() {
-  // All goals (active and complete)
-  const [goals, setGoals] = useState(INITIAL_GOALS);
+  const { authenticated } = useAuth();
 
-  // State for Add Goal form
+  // State for backend goals
+  const [goals, setGoals] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
+  
+  // Add/Edit Goal
   const [addMode, setAddMode] = useState(false);
   const [newGoal, setNewGoal] = useState({ title: '', target: '', icon: GOAL_ICONS[0] });
-  const [addError, setAddError] = useState('');
+  const [addErr, setAddErr] = useState('');
+  const [saving, setSaving] = useState(false);
 
-  // State for Edit Goal form
-  const [editIdx, setEditIdx] = useState(null); // which goal is in edit mode (or null)
+  // Edit state
+  const [editId, setEditId] = useState(null);   // goal.id or null
   const [editGoal, setEditGoal] = useState(null);
-  const [editError, setEditError] = useState('');
+  const [editErr, setEditErr] = useState('');
 
-  // Undo and confirmation modals
-  const [undoState, setUndoState] = useState(null); // {type:'remove'|'complete', goal, index}
-  const [removeConfirm, setRemoveConfirm] = useState(null); // { idx, title }
+  // Undo and dialog/feedback
+  const [undoState, setUndoState] = useState(null); // {type, goal, id (goal.id)}
+  const [removeConfirm, setRemoveConfirm] = useState(null); // { id, title }
+  const [successMsg, setSuccessMsg] = useState('');
+  const [actionError, setActionError] = useState('');
 
-  // PUBLIC_INTERFACE: Handle Add
-  function handleAddGoal(e) {
+  // Fetch goals from backend
+  useEffect(() => {
+    if (!authenticated) return;
+    setLoading(true);
+    setLoadError('');
+    getGoals()
+      .then(gs => setGoals(Array.isArray(gs) ? gs : []))
+      .catch(err => setLoadError(err?.message || "Failed to load goals."))
+      .finally(() => setLoading(false));
+  }, [authenticated]);
+
+  // PUBLIC_INTERFACE: Add new goal via backend
+  async function handleAddGoal(e) {
     e.preventDefault();
+    setAddErr('');
+    setActionError('');
     if (!newGoal.title.trim() || !newGoal.target.trim()) {
-      setAddError('Goal title and target required.');
+      setAddErr('Goal title and target required.');
       return;
     }
     if (newGoal.title.length > 120) {
-      setAddError('Title too long, must be under 120 characters.');
+      setAddErr('Title too long, must be under 120 characters.');
       return;
     }
     if (newGoal.target.length > 60) {
-      setAddError('Target too long, must be under 60 characters.');
+      setAddErr('Target too long, must be under 60 characters.');
       return;
     }
-    setGoals(oldGoals => [
-      {
+    setSaving(true);
+    try {
+      await addGoal({
         title: newGoal.title.trim(),
-        progress: 0,
-        icon: newGoal.icon,
         target: newGoal.target.trim(),
-        status: "Active",
-      },
-      ...oldGoals,
-    ]);
-    setNewGoal({ title: '', target: '', icon: GOAL_ICONS[0] });
-    setAddError('');
-    setAddMode(false);
+        icon: newGoal.icon || GOAL_ICONS[0],
+      });
+      setNewGoal({ title: '', target: '', icon: GOAL_ICONS[0] });
+      setAddMode(false);
+      setSuccessMsg('Goal added!');
+      // Reload from backend
+      const gs = await getGoals();
+      setGoals(Array.isArray(gs) ? gs : []);
+    } catch (err) {
+      setAddErr(err?.message || 'Failed to add goal.');
+    } finally {
+      setSaving(false);
+    }
   }
 
-  // PUBLIC_INTERFACE: Handle Edit 
-  function handleEditGoal(idx) {
-    setEditIdx(idx);
-    setEditGoal({ ...goals[idx] });
-    setEditError('');
+  // PUBLIC_INTERFACE: Begin edit mode for a goal
+  function handleEditGoal(goal) {
+    setEditId(goal.id);
+    setEditGoal({ ...goal });
+    setEditErr('');
+    setActionError('');
   }
-  function handleEditSubmit(e) {
+
+  // PUBLIC_INTERFACE: Save edits to backend
+  async function handleEditSubmit(e) {
     e.preventDefault();
+    setEditErr('');
+    setActionError('');
     if (!editGoal.title.trim() || !editGoal.target.trim()) {
-      setEditError('Goal title and target required.');
+      setEditErr('Goal title and target required.');
       return;
     }
     if (editGoal.title.length > 120) {
-      setEditError('Title too long, must be under 120 characters.');
+      setEditErr('Title too long, must be under 120 characters.');
       return;
     }
     if (editGoal.target.length > 60) {
-      setEditError('Target too long, must be under 60 characters.');
+      setEditErr('Target too long, must be under 60 characters.');
       return;
     }
-    setGoals(goals => goals.map((g, i) =>
-      i === editIdx 
-        ? { ...g, title: editGoal.title.trim(), target: editGoal.target.trim(), icon: editGoal.icon }
-        : g
-    ));
-    setEditIdx(null);
-    setEditGoal(null);
-    setEditError('');
+    setSaving(true);
+    try {
+      await updateGoal(editId, {
+        title: editGoal.title.trim(),
+        target: editGoal.target.trim(),
+        icon: editGoal.icon
+      });
+      setEditId(null);
+      setEditGoal(null);
+      setSuccessMsg('Goal updated!');
+      // Reload latest from backend
+      const gs = await getGoals();
+      setGoals(Array.isArray(gs) ? gs : []);
+    } catch (err) {
+      setEditErr(err?.message || "Failed to update goal.");
+    } finally {
+      setSaving(false);
+    }
   }
   function handleEditCancel() {
+    setEditId(null);
     setEditGoal(null);
-    setEditIdx(null);
-    setEditError('');
+    setEditErr('');
   }
 
-  // PUBLIC_INTERFACE: Delete (remove) goal
-  function handleRemove(idx) {
-    // Open confirm modal
-    setRemoveConfirm({ idx, title: goals[idx]?.title });
-  }
-  function confirmRemoveGoal() {
-    if (removeConfirm) {
-      const idx = removeConfirm.idx;
-      const goal = goals[idx];
-      setUndoState({
-        type: 'remove',
-        goal: { ...goal },
-        index: idx,
-      });
-      setGoals(goals => goals.filter((g, i) => i !== idx));
+  // PUBLIC_INTERFACE: Mark goal as complete (progress 100)
+  async function handleComplete(goal) {
+    setSaving(true);
+    setActionError('');
+    try {
+      await updateGoal(goal.id, { progress: 100, status: 'Achieved' });
+      setSuccessMsg('Goal marked complete!');
+      const gs = await getGoals();
+      setGoals(Array.isArray(gs) ? gs : []);
+    } catch (err) {
+      setActionError(err?.message || "Failed to complete goal.");
+    } finally {
+      setSaving(false);
     }
-    setRemoveConfirm(null);
+  }
+  // Increment progress by 10 up to 100, and update
+  async function handleIncrement(goal) {
+    if (goal.progress >= 100) return;
+    const newProg = Math.min(100, (goal.progress || 0) + 10);
+    const newStatus = newProg === 100 ? 'Achieved' : 'In Progress';
+    setSaving(true);
+    setActionError('');
+    try {
+      await updateGoal(goal.id, { progress: newProg, status: newStatus });
+      setSuccessMsg('Progress updated!');
+      const gs = await getGoals();
+      setGoals(Array.isArray(gs) ? gs : []);
+    } catch (err) {
+      setActionError(err?.message || "Failed to update progress.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // PUBLIC_INTERFACE: Delete (remove) goal (confirm)
+  function handleRemove(goal) {
+    setRemoveConfirm({ id: goal.id, title: goal.title });
+    setActionError('');
+  }
+  async function confirmRemoveGoal() {
+    if (!removeConfirm) return;
+    setSaving(true);
+    setActionError('');
+    try {
+      // Save a snapshot for optimistic undo
+      const removedGoal = goals.find(g => g.id === removeConfirm.id);
+      setUndoState({ type: 'remove', goal: removedGoal, id: removeConfirm.id });
+      await deleteGoal(removeConfirm.id);
+      setSuccessMsg('Goal deleted.');
+      const gs = await getGoals();
+      setGoals(Array.isArray(gs) ? gs : []);
+    } catch (err) {
+      setActionError(err?.message || "Failed to delete goal.");
+    } finally {
+      setSaving(false);
+      setRemoveConfirm(null);
+    }
   }
   function cancelRemoveGoal() {
     setRemoveConfirm(null);
   }
 
-  // PUBLIC_INTERFACE: Mark a goal as complete
-  function handleComplete(idx) {
-    const goal = goals[idx];
-    if (!goal || goal.progress === 100) return;
-    setUndoState({
-      type: 'complete',
-      goal: { ...goal },
-      index: idx,
-      prevStatus: goal.status,
-      prevProgress: goal.progress,
-    });
-    setGoals(gs => gs.map((g, i) =>
-      i === idx && g.progress < 100
-        ? { ...g, progress: 100, status: 'Achieved' }
-        : g
-    ));
-  }
-
-  // PUBLIC_INTERFACE: Increment progress (by 10, max 100)
-  function handleIncrement(idx) {
-    setGoals(goals => goals.map((g, i) =>
-      i === idx && g.progress < 100
-        ? {
-            ...g,
-            progress: Math.min(100, g.progress + 10),
-            status: Math.min(100, g.progress + 10) === 100 ? 'Achieved' : 'In Progress',
-          }
-        : g
-    ));
-  }
-
-  // Undo actions
-  function handleUndo() {
+  // PUBLIC_INTERFACE: Undo (re-add removed or revert complete)
+  async function handleUndo() {
     if (!undoState) return;
-    if (undoState.type === 'remove') {
-      setGoals(prev =>
-        [
-          ...prev.slice(0, undoState.index),
-          undoState.goal,
-          ...prev.slice(undoState.index),
-        ]
-      );
-    } else if (undoState.type === 'complete') {
-      setGoals(prev =>
-        prev.map((g, i) =>
-          i === undoState.index
-            ? { ...g, progress: undoState.prevProgress, status: undoState.prevStatus }
-            : g
-        )
-      );
+    setSaving(true);
+    setActionError('');
+    try {
+      if (undoState.type === 'remove') {
+        // Re-insert the removed goal as a new entry (may get new id)
+        const { goal } = undoState;
+        await addGoal({
+          title: goal.title, target: goal.target, icon: goal.icon,
+          progress: goal.progress, status: goal.status
+        });
+      }
+      // (Could implement undo of Complete with updateGoal here if needed)
+      setSuccessMsg('Undo successful');
+      const gs = await getGoals();
+      setGoals(Array.isArray(gs) ? gs : []);
+    } catch (err) {
+      setActionError('Undo failed: ' + (err?.message || ''));
+    } finally {
+      setSaving(false);
+      setUndoState(null);
     }
-    setUndoState(null);
   }
   function handleDismiss() {
     setUndoState(null);
+    setSuccessMsg('');
+    setActionError('');
   }
 
-  // Section for displaying goals
-  const activeGoals = goals.filter(g => g.progress < 100);
-  // const completedGoals = goals.filter(g => g.progress === 100);
+  // Hide UI if not authenticated
+  if (!authenticated) {
+    return (
+      <div>
+        <h2 className="mb-md">Goal Tracking</h2>
+        <div className="eco-card" style={{
+          color: "var(--accent-dark)",
+          textAlign: "center",
+          margin: "30px auto",
+          maxWidth: 400,
+          fontSize: 16,
+        }}>
+          You must be logged in to view or manage your goals.
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div>
-      {/* Undo notification */}
+      {/* Undo feedback */}
       {undoState && (
         <UndoNotification
           message={
-            undoState.type === "remove"
-              ? `Goal "${undoState.goal.title}" removed.`
-              : `Marked "${undoState.goal.title}" as complete.`
+            undoState.type === 'remove'
+              ? `Goal "${undoState.goal?.title}" removed.`
+              : `Action undone.`
           }
           onUndo={handleUndo}
           onClose={handleDismiss}
         />
       )}
 
+      {successMsg && (
+        <div
+          style={{
+            background: "linear-gradient(90deg, #bbefc0 80%, #cdffe2 100%)",
+            color: "#202924",
+            fontWeight: 660,
+            borderRadius: 9,
+            padding: "12px 16px",
+            margin: "11px 0 13px 0",
+            textAlign: "center",
+            fontSize: 15,
+            border: "1.3px solid var(--primary)",
+            boxShadow: "0 2px 16px #2e7d3234",
+            maxWidth: 420,
+            marginLeft: "auto', marginRight: 'auto"
+          }}
+          role="status"
+          aria-live="polite"
+        >
+          {successMsg}
+          <button
+            style={{
+              marginLeft: 16,
+              background: "none",
+              border: "none",
+              fontWeight: 900,
+              color: "#2e7d32",
+              fontSize: 19,
+              cursor: "pointer",
+              verticalAlign: "middle",
+            }}
+            title="Dismiss"
+            aria-label="Dismiss success notification"
+            onClick={() => setSuccessMsg("")}
+            tabIndex={0}
+          >×</button>
+        </div>
+      )}
+
+      {/* Global error or load error */}
+      {(actionError || loadError) && (
+        <ErrorBanner
+          message={actionError || loadError}
+          onClose={() => {
+            setActionError('');
+            setLoadError('');
+          }}
+        />
+      )}
+
+      {loading ? (
+        <div style={{textAlign: "center", marginTop: 43}}>
+          <LoadingSpinner />
+          <div style={{ marginTop: 9, color: "var(--accent)" }}>Loading goals...</div>
+        </div>
+      ) : (
+      <>
       <h2 className="mb-md">Goal Tracking</h2>
       <div className="mb-md">
         {/* Add Goal: controlled form */}
@@ -290,13 +393,15 @@ function GoalTracking() {
                 setNewGoal(g => ({ ...g, target: e.target.value }))
               }
               maxLength={60}
+              disabled={saving}
             />
             <button
               className="btn"
               type="submit"
               style={{ fontWeight: 650, fontSize: 15, padding: "7px 16px" }}
+              disabled={saving}
             >
-              Add
+              {saving ? "Saving..." : "Add"}
             </button>
             <button
               className="btn"
@@ -311,14 +416,15 @@ function GoalTracking() {
               onClick={() => {
                 setNewGoal({ title: "", target: "", icon: GOAL_ICONS[0] });
                 setAddMode(false);
-                setAddError("");
+                setAddErr("");
               }}
+              disabled={saving}
             >
               Cancel
             </button>
-            {addError && (
+            {addErr && (
               <div style={{ color: "#c0392b", fontSize: 13, flexBasis: "100%", marginTop: 3 }}>
-                {addError}
+                {addErr}
               </div>
             )}
           </form>
@@ -329,6 +435,7 @@ function GoalTracking() {
               style={{ marginTop: 3, marginBottom: 2, padding: "10px 30px", fontWeight: 700, fontSize: 17 }}
               onClick={() => setAddMode(true)}
               aria-label="Add new goal"
+              disabled={saving}
             >
               + Add New Goal
             </button>
@@ -342,13 +449,13 @@ function GoalTracking() {
           </div>
         )}
 
-        {/* List out ALL goals */}
+        {/* List ALL goals */}
         {goals.map((goal, i) => {
           const isCompleted = goal.progress === 100;
-          // Edit mode for this item
-          if (editIdx === i) {
+          // Edit mode for this goal
+          if (editId === goal.id) {
             return (
-              <form key={`goal-${i}-edit`}
+              <form key={`goal-${goal.id}-edit`}
                 className="eco-card"
                 style={{
                   display: "flex", alignItems: "center", gap: 13, marginBottom: 10, flexWrap: "wrap",
@@ -385,6 +492,7 @@ function GoalTracking() {
                   }}
                   onChange={e => setEditGoal(g => ({ ...g, title: e.target.value }))}
                   maxLength={120}
+                  disabled={saving}
                 />
                 <input
                   type="text"
@@ -401,13 +509,15 @@ function GoalTracking() {
                   }}
                   onChange={e => setEditGoal(g => ({ ...g, target: e.target.value }))}
                   maxLength={60}
+                  disabled={saving}
                 />
                 <button
                   className="btn"
                   type="submit"
                   style={{ fontWeight: 650, fontSize: 15, padding: "7px 15px" }}
+                  disabled={saving}
                 >
-                  Save
+                  {saving ? "Saving..." : "Save"}
                 </button>
                 <button
                   className="btn"
@@ -420,22 +530,22 @@ function GoalTracking() {
                     marginLeft: 6
                   }}
                   onClick={handleEditCancel}
+                  disabled={saving}
                 >
                   Cancel
                 </button>
-                {editError && (
+                {editErr && (
                   <div style={{ color: "#c0392b", fontSize: 13, flexBasis: "100%", marginTop: 3 }}>
-                    {editError}
+                    {editErr}
                   </div>
                 )}
               </form>
             );
           }
-
           // View (non-edit) mode
           return (
             <div
-              key={`goal-${i}-view`}
+              key={goal.id}
               className="eco-card"
               style={{
                 display: "flex", alignItems: "center", gap: 17, marginBottom: 10,
@@ -472,7 +582,7 @@ function GoalTracking() {
                 textAlign: "center",
                 fontSize: 15
               }}>
-                {isCompleted ? "100%" : `${goal.progress}%`}
+                {isCompleted ? "100%" : `${goal.progress || 0}%`}
               </div>
               {!isCompleted && (
                 <div>
@@ -486,8 +596,8 @@ function GoalTracking() {
                       marginRight: 5
                     }}
                     aria-label="Increment progress"
-                    onClick={() => handleIncrement(i)}
-                    disabled={goal.progress >= 100}
+                    onClick={() => handleIncrement(goal)}
+                    disabled={goal.progress >= 100 || saving}
                   >
                     +10%
                   </button>
@@ -501,8 +611,8 @@ function GoalTracking() {
                       color: goal.progress >= 100 ? "#537620" : "#fff"
                     }}
                     aria-label="Mark as complete"
-                    onClick={() => handleComplete(i)}
-                    disabled={goal.progress >= 100}
+                    onClick={() => handleComplete(goal)}
+                    disabled={goal.progress >= 100 || saving}
                   >
                     {goal.progress >= 100 ? "Complete" : "Mark Complete"}
                   </button>
@@ -521,7 +631,8 @@ function GoalTracking() {
                   }}
                   title="Edit goal"
                   aria-label="Edit goal"
-                  onClick={() => handleEditGoal(i)}
+                  onClick={() => handleEditGoal(goal)}
+                  disabled={saving}
                 >
                   Edit
                 </button>
@@ -538,7 +649,8 @@ function GoalTracking() {
                   }}
                   title="Delete goal"
                   aria-label="Delete goal"
-                  onClick={() => handleRemove(i)}
+                  onClick={() => handleRemove(goal)}
+                  disabled={saving}
                 >
                   Delete
                 </button>
@@ -553,13 +665,12 @@ function GoalTracking() {
           Set, update, edit and remove your climate action goals!
         </div>
         <div style={{ fontSize: 13, color: "var(--text-faint)" }}>
-          Track your progress, mark achievements, remove or edit goals. All data is demo/mock and saved only in your session.
+          Track your progress, mark achievements, remove or edit goals. All changes are securely saved to your account.
         </div>
       </div>
       <div className="mt-md" style={{ fontSize: 13, color: "var(--text-faint)", textAlign: "center" }}>
-        Tip: Try adding, editing, or deleting a goal – or updating its progress!
+        Tip: Try adding, editing, deleting, or updating your goal progress!
       </div>
-      {/* Modal for delete confirmation */}
       <ConfirmationModal
         open={!!removeConfirm}
         title="Delete Goal"
@@ -569,8 +680,11 @@ function GoalTracking() {
         confirmLabel="Delete"
         cancelLabel="Cancel"
       />
+      </>
+      )}
     </div>
   );
 }
 
 export default GoalTracking;
+
