@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import { useAuth } from "../AuthContext";
 import LoadingSpinner from "./LoadingSpinner";
 import ErrorBanner from "./ErrorBanner";
@@ -12,6 +12,16 @@ export default function Register({ onToggle }) {
   const [emailError, setEmailError] = useState(null);
   const [passwordError, setPasswordError] = useState(null);
 
+  // Helper for full reset
+  const resetAll = useCallback(() => {
+    setEmail("");
+    setPassword("");
+    setLocalError(null);
+    setEmailError(null);
+    setPasswordError(null);
+    setAuthError && setAuthError(null); // clear AuthContext error on switch
+  }, [setAuthError]);
+
   function validateEmail(val) {
     // Basic email regex
     return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(val.trim());
@@ -23,6 +33,17 @@ export default function Register({ onToggle }) {
       return "Password must include both letters and numbers.";
     if (/^\s+$/.test(val)) return "Password cannot be blank spaces.";
     return null;
+  }
+
+  // Reset state on mount/unmount
+  React.useEffect(() => {
+    resetAll();
+    // eslint-disable-next-line
+  }, []);
+
+  function handleSwitchToLogin() {
+    resetAll();
+    onToggle && onToggle();
   }
 
   // PUBLIC_INTERFACE
@@ -62,7 +83,14 @@ export default function Register({ onToggle }) {
 
   return (
     <div style={{ maxWidth: 400, margin: "80px auto 0" }}>
-      <h2 style={{ textAlign: "center", marginBottom: 22, color: "var(--primary)" }}>Register</h2>
+      <h2 style={{
+        textAlign: "center",
+        marginBottom: 22,
+        color: "var(--primary)",
+        letterSpacing: ".01em"
+      }}>
+        Register
+      </h2>
       <form className="eco-card" onSubmit={handleSubmit} style={{ padding: 26 }}>
         <div style={{ marginBottom: 18 }}>
           <label style={{ fontWeight: 600 }}>
@@ -80,6 +108,8 @@ export default function Register({ onToggle }) {
                 } else {
                   setEmailError(null);
                 }
+                setLocalError(null);
+                setAuthError && setAuthError(null);
               }}
               style={{
                 display: "block",
@@ -129,6 +159,8 @@ export default function Register({ onToggle }) {
                   const valErr = validatePassword(val);
                   setPasswordError(valErr);
                 }
+                setLocalError(null);
+                setAuthError && setAuthError(null);
               }}
               style={{
                 display: "block",
@@ -144,7 +176,7 @@ export default function Register({ onToggle }) {
               required
               minLength={8}
               aria-invalid={Boolean(passwordError)}
-              aria-describedby={passwordError ? "register-password-error" : "register-password-hint"}
+              aria-describedby={passwordError ? "register-password-error" : (error ? "register-password-backend-error" : "register-password-hint")}
             />
             {passwordError && (
               <div
@@ -161,7 +193,46 @@ export default function Register({ onToggle }) {
                 {passwordError}
               </div>
             )}
-            {!passwordError && (
+            {/* Backend registration error, e.g. duplicate/conflict */}
+            {error &&
+              <div
+                id="register-password-backend-error"
+                style={{
+                  color: "#fff",
+                  background: "#b8002b",
+                  padding: "6px 12px",
+                  borderRadius: "6px",
+                  marginTop: 8,
+                  marginLeft: 0,
+                  fontSize: 14.3,
+                  fontWeight: 600,
+                  letterSpacing: ".01em",
+                  boxShadow: "0 4px 24px #1a1a1a13"
+                }}
+                role="alert"
+                aria-live="polite"
+              >
+                {error}
+                <button
+                  type="button"
+                  onClick={() => setAuthError(null)}
+                  style={{
+                    marginLeft: 14,
+                    color: "#fff",
+                    background: "none",
+                    border: "none",
+                    fontSize: 17,
+                    fontWeight: 900,
+                    cursor: "pointer",
+                    verticalAlign: "middle"
+                  }}
+                  aria-label="Dismiss error"
+                >
+                  ×
+                </button>
+              </div>
+            }
+            {!passwordError && !error && (
               <div
                 id="register-password-hint"
                 style={{
@@ -178,7 +249,6 @@ export default function Register({ onToggle }) {
           </label>
         </div>
         {localError && <ErrorBanner message={localError} onClose={() => setLocalError(null)} />}
-        {error && <ErrorBanner message={error} onClose={() => setAuthError(null)} />}
         <button
           className="btn"
           disabled={loading}
@@ -187,15 +257,27 @@ export default function Register({ onToggle }) {
         >
           {loading ? "Registering..." : "Register"}
         </button>
-        <div style={{ marginTop: 7, textAlign: "center", fontSize: 13, color: "var(--text-faint)" }}>
-          Already have an account?{" "}
+        <div style={{ marginTop: 17, textAlign: "center", fontSize: 15, color: "var(--text-faint)" }}>
+          <span style={{ fontWeight: 400 }}>Already have an account?</span>
           <button
             type="button"
             className="btn"
-            style={{ background: "var(--accent-dark)", color: "#202924", fontWeight: 650, fontSize: 13, padding: 6 }}
-            onClick={onToggle}
+            style={{
+              background: "var(--secondary)",
+              color: "#fff",
+              fontWeight: 700,
+              fontSize: 14,
+              padding: "6px 24px",
+              marginLeft: 12,
+              borderRadius: 7,
+              marginTop: -2,
+              boxShadow: "0 1.5px 10px #1976d236"
+            }}
+            onClick={handleSwitchToLogin}
+            aria-label="Switch to log in"
+            tabIndex={0}
           >
-            Sign In
+            Log in
           </button>
         </div>
       </form>
