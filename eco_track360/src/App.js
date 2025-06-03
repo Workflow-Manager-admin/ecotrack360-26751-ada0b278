@@ -9,6 +9,7 @@ import Integrations from './components/Integrations';
 import GoalTracking from './components/GoalTracking';
 import Leaderboard from './components/Leaderboard';
 import Navigation from './components/Navigation';
+import Profile from './components/Profile';
 
 // Section key -> component map
 const SECTION_COMPONENTS = {
@@ -18,6 +19,7 @@ const SECTION_COMPONENTS = {
   integrations: Integrations,
   goals: GoalTracking,
   leaderboard: Leaderboard,
+  profile: Profile,
 };
 
 /**

@@ -14,6 +14,7 @@ function Navigation({ currentSection, setSection }) {
     { label: 'Integrations', icon: '🔗', section: 'integrations' },
     { label: 'Goals', icon: '🎯', section: 'goals' },
     { label: 'Leaderboard', icon: '📈', section: 'leaderboard' },
+    { label: 'Profile', icon: '🪴', section: 'profile' }, // Profile nav item with eco icon
   ];
 
   return (
