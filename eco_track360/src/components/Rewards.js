@@ -78,30 +78,45 @@ function Rewards() {
 
   // Redeem/donate reward (if enough credits)
   // PUBLIC_INTERFACE
+  const [pendingReward, setPendingReward] = useState(null); // reward object or null
+
   function handleRedeem(reward) {
-    if (ecoCredits >= reward.points && !rewardHistory.includes(reward.label)) {
-      const prevCredits = ecoCredits;
-      const prevHistory = [...rewardHistory];
-      setEcoCredits(c => c - reward.points);
-      setRewardHistory(h => [...h, reward.label]);
-      // Remove any feedback and show undo notification
-      setFeedback(null);
-      setUndoState({
-        reward,
-        prevCredits,
-        prevHistory,
-      });
-    } else if (rewardHistory.includes(reward.label)) {
-      setFeedback({
-        message: "You have already claimed this reward.",
-        type: "info"
-      });
-    } else {
-      setFeedback({
-        message: "Not enough credits for this reward.",
-        type: "error"
-      });
+    // Only prompt a dialog if the reward can be redeemed (disable otherwise anyway)
+    setPendingReward(reward);
+  }
+
+  function confirmRedeemReward() {
+    if (pendingReward) {
+      const reward = pendingReward;
+      if (ecoCredits >= reward.points && !rewardHistory.includes(reward.label)) {
+        const prevCredits = ecoCredits;
+        const prevHistory = [...rewardHistory];
+        setEcoCredits(c => c - reward.points);
+        setRewardHistory(h => [...h, reward.label]);
+        // Remove any feedback and show undo notification
+        setFeedback(null);
+        setUndoState({
+          reward,
+          prevCredits,
+          prevHistory,
+        });
+      } else if (rewardHistory.includes(reward.label)) {
+        setFeedback({
+          message: "You have already claimed this reward.",
+          type: "info"
+        });
+      } else {
+        setFeedback({
+          message: "Not enough credits for this reward.",
+          type: "error"
+        });
+      }
     }
+    setPendingReward(null);
+  }
+
+  function cancelRedeemReward() {
+    setPendingReward(null);
   }
 
   // Close the feedback notification
@@ -283,6 +298,26 @@ function Rewards() {
           Earn credits for eco-friendly actions. Redeem for rewards, donate, or claim more credits!
         </span>
       </div>
+      {/* ConfirmationModal for redeem/donate actions */}
+      <ConfirmationModal
+        open={!!pendingReward}
+        title={
+          pendingReward?.action === 'donate'
+            ? "Confirm Donation"
+            : "Confirm Redemption"
+        }
+        message={
+          pendingReward
+            ? `Are you sure you want to ${
+              pendingReward.action === 'donate' ? 'donate for' : 'redeem'
+            } "${pendingReward.label}"? This action will use ${pendingReward.points} of your eco credits.`
+            : ""
+        }
+        onCancel={cancelRedeemReward}
+        onConfirm={confirmRedeemReward}
+        confirmLabel={pendingReward?.action === "donate" ? "Donate" : "Redeem"}
+        cancelLabel="Cancel"
+      />
     </div>
   );
 }
