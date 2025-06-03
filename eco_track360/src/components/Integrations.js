@@ -67,14 +67,35 @@ function Integrations() {
     maps: true,
     energy: true
   });
+  // Undo state: {key, prevState: bool, label}
+  const [undoState, setUndoState] = useState(null);
 
   // PUBLIC_INTERFACE
   // Toggle a single integration (connect/disconnect)
   function handleToggle(key) {
+    setUndoState({
+      key,
+      prevState: connections[key],
+      label: MOCK_INTEGRATIONS.find(i => i.key === key)?.label || key
+    });
     setConnections(conns => ({
       ...conns,
       [key]: !conns[key]
     }));
+  }
+
+  // Undo handler
+  function handleUndo() {
+    if (undoState) {
+      setConnections(conns => ({
+        ...conns,
+        [undoState.key]: undoState.prevState
+      }));
+      setUndoState(null);
+    }
+  }
+  function handleDismiss() {
+    setUndoState(null);
   }
 
   // Collect the data for currently connected integrations

@@ -150,6 +150,18 @@ function GoalTracking() {
 
   return (
     <div>
+      {/* Undo notification */}
+      {undoState && (
+        <UndoNotification
+          message={
+            undoState.type === 'remove'
+              ? `Goal "${undoState.goal.title}" removed.`
+              : `Marked "${undoState.goal.title}" as complete.`
+          }
+          onUndo={handleUndo}
+          onClose={handleDismiss}
+        />
+      )}
       <h2 className="mb-md">Goal Tracking</h2>
       <div className="mb-md">
         {/* Add new goal form */}
