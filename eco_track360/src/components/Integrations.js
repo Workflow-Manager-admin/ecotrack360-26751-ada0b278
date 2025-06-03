@@ -105,6 +105,19 @@ function Integrations() {
 
   return (
     <div>
+      {/* Undo notification for integration toggle */}
+      {undoState && (
+        <UndoNotification
+          message={
+            connections[undoState.key]
+              ? `${undoState.label} connected.`
+              : `${undoState.label} disconnected.`
+          }
+          onUndo={handleUndo}
+          onClose={handleDismiss}
+        />
+      )}
+
       <h2 className="mb-md">Integrations</h2>
       <div className="eco-card mb-md" style={{ maxWidth: 520, margin: "auto" }}>
         <div style={{ color: "var(--secondary)", fontWeight: 600, fontSize: 17, marginBottom: 7 }}>
