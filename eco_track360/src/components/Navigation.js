@@ -2,11 +2,11 @@ import React from 'react';
 
 /**
  * PUBLIC_INTERFACE
- * Navigation renders main navigation bar (desktop vertical or mobile bottom nav).
- * Links to Dashboard, Rewards, AI Assistant, Integrations, Goals, Leaderboard.
+ * Navigation renders main navigation bar (bottom tab for mobile/minimal design).
+ * Handles section selection and highlights the active section per eco UI plan.
  */
 function Navigation({ currentSection, setSection }) {
-  // Navigation items: label, icon (emoji as icon placeholder), section key
+  // Navigation structure: label, eco icon (emoji), section-key
   const navItems = [
     { label: 'Dashboard', icon: '🌎', section: 'dashboard' },
     { label: 'Rewards', icon: '🏅', section: 'rewards' },
@@ -17,35 +17,30 @@ function Navigation({ currentSection, setSection }) {
   ];
 
   return (
-    <nav className="eco-nav" style={{
-      display: "flex",
-      flexDirection: "row",
-      justifyContent: "space-around",
-      padding: "16px 0",
-      background: "#181E19",
-      borderTop: "1px solid #222",
-      position: "sticky",
-      bottom: 0,
-      zIndex: 101,
-    }}>
-      {navItems.map(item => (
+    <nav className="eco-nav">
+      {navItems.map((item) => (
         <button
           key={item.section}
-          className="btn"
-          style={{
-            background: currentSection === item.section ? "#2E7D32" : "#222",
-            color: "#fff",
-            minWidth: 80,
-            margin: "0 8px",
-            border: "none",
-            borderRadius: 8,
-            outline: currentSection === item.section ? "2px solid #2E7D32" : "none"
-          }}
+          className={
+            'nav-btn' +
+            (currentSection === item.section ? ' selected' : '')
+          }
+          aria-current={currentSection === item.section ? 'page' : undefined}
           aria-label={item.label}
+          tabIndex={0}
+          style={{
+            background: currentSection === item.section ? 'var(--primary)' : 'transparent',
+            color: currentSection === item.section ? '#fff' : 'var(--text-faint)',
+            minWidth: 76,
+            margin: '0 3px',
+            fontWeight: currentSection === item.section ? 700 : 500,
+          }}
           onClick={() => setSection(item.section)}
         >
-          <span aria-hidden="true" style={{ marginRight: 7 }}>{item.icon}</span>
-          {item.label}
+          <span aria-hidden="true" style={{ marginRight: 7 }}>
+            {item.icon}
+          </span>
+          <span>{item.label}</span>
         </button>
       ))}
     </nav>
