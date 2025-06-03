@@ -3,12 +3,12 @@ import React, { useState } from 'react';
 /**
  * PUBLIC_INTERFACE
  * CarbonDashboard displays user's real-time carbon footprint data with interactive mock features.
- * Users can toggle between pie/bar chart views, expand/collapse category breakdowns, and select timespan filters.
- * All data is client-side and demo-only; logic stubs for future backend integration.
+ * Users can now add their own carbon entries to the dashboard via a controlled input form. Allows per-session demo data entry for charts.
+ * All data is kept in local component state.
  */
 
 // MOCK CO2 data by categories and for different time spans
-const MOCK_DATA = {
+const INITIAL_MOCK_DATA = {
   month: [
     { key: 'food', label: 'Food', color: 'var(--primary)', co2: 1.9, icon: '🥗', details: 'Plant-based: 70% / Animal: 30%' },
     { key: 'transport', label: 'Transportation', color: 'var(--secondary)', co2: 3.1, icon: '🚙', details: 'Car: 220mi, Flights: 0' },
@@ -36,7 +36,13 @@ const TIMESPANS = [
   { key: 'year', label: 'This year' }
 ];
 
-// Returns mock chart slices for pie
+const CATEGORY_ICONS = [
+  { key: 'food', label: 'Food', icon: '🥗', color: 'var(--primary)' },
+  { key: 'transport', label: 'Transportation', icon: '🚙', color:'var(--secondary)' },
+  { key: 'energy', label: 'Home Energy', icon: '💡', color:'#BDBDBD' },
+  { key: 'shopping', label: 'Shopping', icon: '🛍️', color:'#8a8a8a' },
+];
+
 function getPieChartConic(categories) {
   let total = categories.reduce((sum, c) => sum + c.co2, 0);
   let acc = 0;
@@ -52,22 +58,77 @@ function getPieChartConic(categories) {
   );
 }
 
+// PUBLIC_INTERFACE
 function CarbonDashboard() {
   // Toggle between 'pie' and 'bar' chart views
   const [chartType, setChartType] = useState('pie'); // 'pie' or 'bar'
   // Expand/collapse for categories
   const [expanded, setExpanded] = useState(() => {
-    // default: all expanded for MVP, but support collapse
     let o = {};
-    MOCK_DATA['month'].forEach(c => o[c.key] = true);
+    INITIAL_MOCK_DATA['month'].forEach(c => o[c.key] = true);
     return o;
   });
   // Timespan selection
   const [timespan, setTimespan] = useState('month');
+  // Local state for custom data per timespan
+  const [userData, setUserData] = useState({
+    week: [],
+    month: [],
+    year: []
+  });
+  // Entry form state
+  const [newEntry, setNewEntry] = useState({
+    value: "",
+    label: "",
+    catKey: "food",
+    details: ""
+  });
 
-  // Memoize category data for selected timespan
-  const categories = MOCK_DATA[timespan];
-  const totalCO2 = categories.reduce((t, c) => t + c.co2, 0);
+  // Merge mock and user data
+  function getCategories() {
+    let builtins = INITIAL_MOCK_DATA[timespan];
+    let custom = userData[timespan] || [];
+    // Merge with distinct keys (anon user entries get 'user-' prefix+idx key)
+    return [...builtins, ...custom.map((entry, idx) => ({
+      key: `user-${idx}`,
+      label: entry.label || entry.catKey,
+      color: CATEGORY_ICONS.find(c=>c.key===entry.catKey)?.color || 'var(--accent)',
+      co2: Number(entry.value) || 0,
+      icon: CATEGORY_ICONS.find(c=>c.key===entry.catKey)?.icon || '🌍',
+      details: entry.details || "User entry"
+    }))];
+  }
+  // Remove user entry by idx
+  function removeUserEntry(idx) {
+    setUserData(prev => ({
+      ...prev,
+      [timespan]: prev[timespan].filter((_, i) => i !== idx)
+    }));
+  }
+
+  // Add entry
+  function handleAddEntry(e) {
+    e.preventDefault();
+    if (!newEntry.value.trim() || isNaN(Number(newEntry.value))) return;
+    setUserData(prev => ({
+      ...prev,
+      [timespan]: [
+        ...prev[timespan],
+        {
+          value: newEntry.value,
+          label: newEntry.label,
+          catKey: newEntry.catKey,
+          details: newEntry.details
+        }
+      ]
+    }));
+    setNewEntry({
+      value: "",
+      label: "",
+      catKey: "food",
+      details: ""
+    });
+  }
 
   // Handler to toggle one category expanded/collapsed
   function handleExpandToggle(key) {
@@ -85,14 +146,19 @@ function CarbonDashboard() {
   // Handler to change timespan
   function handleChangeTimespan(key) {
     setTimespan(key);
-    // When changing timespan, reset expanded state to expanded for all cats
-    // (optional: could collapse all, but keep all expanded as MVP)
     setExpanded(() => {
       let o = {};
-      MOCK_DATA[key].forEach(c => o[c.key] = true);
+      (INITIAL_MOCK_DATA[key] || []).forEach(c => o[c.key] = true);
+      // Also expand any user categories by default
+      if (userData[key]) {
+        userData[key].forEach((_, idx) => (o[`user-${idx}`] = true));
+      }
       return o;
     });
   }
+
+  const categories = getCategories();
+  const totalCO2 = categories.reduce((t, c) => t + c.co2, 0);
 
   return (
     <div>
@@ -101,6 +167,87 @@ function CarbonDashboard() {
         <div style={{ fontSize: 18, color: "var(--text-secondary)", marginBottom: 8}}>
           {TIMESPANS.find(t=>t.key===timespan)?.label || "This month"}’s estimated carbon output:
         </div>
+
+        <form
+          onSubmit={handleAddEntry}
+          style={{
+            margin: "12px auto 21px",
+            background: "var(--surface)",
+            borderRadius: 10,
+            padding: "13px 11px",
+            display: "flex",
+            flexWrap: "wrap",
+            gap: "9px",
+            alignItems: "center",
+            maxWidth: 430,
+            justifyContent: "center"
+          }}
+          aria-label="Add carbon entry"
+        >
+          <span style={{ fontSize: 15, color: "var(--text-faint)", minWidth: 78 }}>Add your entry:</span>
+          <select
+            style={{ fontSize: 15, borderRadius: 6, padding: "4px 8px", border: "1px solid var(--card-border)", color: "var(--text-color)", background: "var(--background)" }}
+            value={newEntry.catKey}
+            onChange={e => setNewEntry(ne => ({ ...ne, catKey: e.target.value }))}
+            aria-label="Category"
+          >
+            {CATEGORY_ICONS.map(opt =>
+              <option value={opt.key} key={opt.key}>{opt.icon + " " + opt.label}</option>
+            )}
+          </select>
+          <input
+            type="text"
+            required
+            value={newEntry.label}
+            onChange={e => setNewEntry(ne => ({ ...ne, label: e.target.value }))}
+            placeholder="Description (e.g. Big trip)"
+            aria-label="Entry label"
+            style={{
+              background: "var(--surface)",
+              color: "var(--text-color)",
+              borderRadius: 6,
+              border: "1px solid var(--card-border)",
+              padding: "3px 9px",
+              minWidth: 99
+            }}
+          />
+          <input
+            type="number"
+            required
+            value={newEntry.value}
+            onChange={e => setNewEntry(ne => ({ ...ne, value: e.target.value }))}
+            placeholder="CO₂ t"
+            aria-label="CO₂ (tons)"
+            step="any"
+            style={{
+              width: 66,
+              background: "var(--surface)",
+              color: "var(--text-color)",
+              borderRadius: 6,
+              border: "1px solid var(--card-border)",
+              padding: "3px 9px"
+            }}
+            min="0"
+          />
+          <input
+            type="text"
+            value={newEntry.details}
+            onChange={e => setNewEntry(ne => ({ ...ne, details: e.target.value }))}
+            placeholder="Details (optional)"
+            aria-label="Details"
+            style={{
+              background: "var(--surface)",
+              color: "var(--text-faint)",
+              borderRadius: 6,
+              border: "1px solid var(--card-border)",
+              padding: "3px 9px",
+              minWidth: 93
+            }}
+          />
+          <button className="btn" type="submit" style={{fontWeight: 700, fontSize: 15, padding: "5px 15px"}}>
+            Add
+          </button>
+        </form>
 
         {/* Timespan selector */}
         <div style={{ display: "flex", justifyContent: "center", gap: 10, marginBottom: 13 }}>
@@ -183,9 +330,9 @@ function CarbonDashboard() {
         </div>
       </div>
 
-      {/* Categories — breakdown, mock expand/collapse */}
+      {/* Categories — breakdown, can remove custom categories */}
       <div className="mb-md">
-        {categories.map(cat => (
+        {categories.map((cat, idx) => (
           <div key={cat.key} className="eco-card" style={{marginBottom: 13, paddingBottom:8}}>
             <button
               style={{
@@ -268,9 +415,26 @@ function CarbonDashboard() {
                   <span style={{color:cat.color, fontWeight:700}}>
                     {cat.co2.toFixed(2)} tCO₂-eq ({(100*cat.co2/totalCO2).toFixed(0)}% of total)
                   </span>
+                  {(cat.key.startsWith('user-')) && (
+                    <div>
+                      <button
+                        onClick={() => removeUserEntry(Number(cat.key.split('user-')[1]))}
+                        className="btn"
+                        style={{
+                          background:"var(--accent-dark)",
+                          color:"#202924",
+                          marginTop:7,
+                          fontSize:13,
+                          padding:"3px 17px"
+                        }}
+                        aria-label="Remove custom entry"
+                      >
+                        Remove Entry
+                      </button>
+                    </div>
+                  )}
                   <div style={{marginTop:5, fontSize:12}}>
                     <em>
-                      {/* Demo stub for more expansion; real version would show actions/trends */}
                       <span>See <a href="#" style={{color:"var(--secondary)"}} tabIndex={-1}>detailed actions & trends</a> (future)</span>
                     </em>
                   </div>
@@ -282,8 +446,8 @@ function CarbonDashboard() {
       </div>
       <div className="eco-highlight text-center">
         <span>
-          Tip: Toggle charts, expand categories, change time range. All data is for demo only. <br />
-          Click a category for detailed actions and trends (real version: will show more).
+          Tip: You can now add your own carbon entries! Toggle charts, expand categories, change time range. <br />
+          Click a category for detailed actions and trends.
         </span>
       </div>
     </div>
