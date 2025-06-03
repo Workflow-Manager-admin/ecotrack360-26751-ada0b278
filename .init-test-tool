@@ -1,0 +1,4 @@
+{
+    "command": "npm run test",
+    "working_directory": "/home/kavia/workspace/code-generation/ecotrack360-26751-ada0b278/eco_track360"
+}
