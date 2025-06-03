@@ -104,7 +104,13 @@ export async function claimReward(label, credits) {
   return apiFetch("/api/rewards/claim", { method: "POST", body: { label, credits } });
 }
 
-// PUBLIC_INTERFACE
+/**
+ * PUBLIC_INTERFACE
+ * Redeem or donate a reward (calls POST /api/rewards/redeem/:rewardId as per backend route).
+ * 
+ * @param {number|string} rewardId - The ID of the reward to redeem/donate.
+ * @returns {Promise<any>} Server response as JSON.
+ */
 export async function redeemReward(rewardId) {
-  return apiFetch(`/api/rewards/redeem`, { method: "POST", body: { rewardId } });
+  return apiFetch(`/api/rewards/redeem/${rewardId}`, { method: "POST" });
 }
