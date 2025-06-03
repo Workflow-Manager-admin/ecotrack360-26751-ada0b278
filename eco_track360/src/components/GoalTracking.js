@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import UndoNotification from './UndoNotification';
 
 /**
  * PUBLIC_INTERFACE
@@ -40,11 +41,11 @@ const INITIAL_GOALS = [
 function GoalTracking() {
   // Goal state (array of goal objects)
   const [goals, setGoals] = useState(INITIAL_GOALS);
-  // Undo state: {type: 'remove'|'complete', goal, index, prevStatus, prevProgress}
-  const [undoState, setUndoState] = useState(null);
   // Track for new goal input UI
   const [showAdd, setShowAdd] = useState(false);
   const [newGoal, setNewGoal] = useState({ title: "", target: "", icon: GOAL_ICONS[0] });
+  // Undo state: {type: 'remove'|'complete', goal, index, prevStatus, prevProgress}
+  const [undoState, setUndoState] = useState(null);
 
   // PUBLIC_INTERFACE
   // Add a new goal to the list
