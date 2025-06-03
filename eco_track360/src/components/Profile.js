@@ -1,10 +1,16 @@
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
+import { getProfile, updateProfile } from "../api";
+import { useAuth } from "../AuthContext";
+import LoadingSpinner from "./LoadingSpinner";
+import ErrorBanner from "./ErrorBanner";
 
 /**
  * PUBLIC_INTERFACE
- * Profile component: allows user to set/view their name, avatar (image URL or upload),
- * and select eco preferences. All values are controlled by component state and changes are
- * reflected live in the profile summary. Basic form validation enforced.
+ * Profile component: loads/saves profile via backend API.
+ * - Loads initial state from backend (GET).
+ * - Saves changes via backend (PUT).
+ * - Shows success/error banners and loading spinner as feedback.
+ * - Requires authentication (from AuthContext) to interact.
  */
 const ECO_PREFERENCES = [
   { key: "vegan", label: "Plant-based Diet" },
