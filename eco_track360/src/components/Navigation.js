@@ -14,7 +14,8 @@ function Navigation({ currentSection, setSection }) {
     { label: 'Integrations', icon: '🔗', section: 'integrations' },
     { label: 'Goals', icon: '🎯', section: 'goals' },
     { label: 'Leaderboard', icon: '📈', section: 'leaderboard' },
-    { label: 'Profile', icon: '🪴', section: 'profile' }, // Profile nav item with eco icon
+    // Profile as main peer section
+    { label: 'Profile', icon: '🪴', section: 'profile' }, // eco styled potted plant (minimal/eco)
   ];
 
   return (
@@ -35,10 +36,15 @@ function Navigation({ currentSection, setSection }) {
             minWidth: 76,
             margin: '0 3px',
             fontWeight: currentSection === item.section ? 700 : 500,
+            border: 'none',
+            borderRadius: 8,
+            transition: 'background 0.1s, color 0.1s',
+            outline: currentSection === item.section ? '2px solid var(--primary)' : 'none',
+            boxShadow: currentSection === item.section ? '0 0 0 2px #22322444' : 'none'
           }}
           onClick={() => setSection(item.section)}
         >
-          <span aria-hidden="true" style={{ marginRight: 7 }}>
+          <span aria-hidden="true" style={{ marginRight: 7, fontSize: item.section === 'profile' ? '1.19em' : undefined }}>
             {item.icon}
           </span>
           <span>{item.label}</span>
