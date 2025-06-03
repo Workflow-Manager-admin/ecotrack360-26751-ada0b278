@@ -108,9 +108,46 @@ function Rewards() {
     setFeedback(null);
   }
 
+  // Undo handler for redemption
+  function handleUndoRedemption() {
+    if (undoState) {
+      setEcoCredits(undoState.prevCredits);
+      setRewardHistory(undoState.prevHistory);
+      setUndoState(null);
+      setFeedback({
+        message: `Redemption for "${undoState.reward.label}" undone.`,
+        type: "info"
+      });
+    }
+  }
+  function handleUndoClose() {
+    if (undoState) {
+      setFeedback({
+        message: undoState.reward.action === 'donate'
+          ? `Thank you for donating! ${undoState.reward.label} successful.`
+          : `Reward redeemed: ${undoState.reward.label}`,
+        type: "success"
+      });
+      setUndoState(null);
+    }
+  }
+
   return (
     <div>
       <h2 className="mb-md">Rewards</h2>
+      {/* Undo notification for redemption */}
+      {undoState && (
+        <UndoNotification
+          message={
+            undoState.reward.action === 'donate'
+              ? `Thank you for donating! ${undoState.reward.label} successful.`
+              : `Reward redeemed: ${undoState.reward.label}`
+          }
+          onUndo={handleUndoRedemption}
+          onClose={handleUndoClose}
+        />
+      )}
+
       {/* Credits summary + progress */}
       <div className="eco-card mb-md" style={{ textAlign: "center", maxWidth: 420, margin: "auto" }}>
         <div style={{ fontSize: 18, color: "var(--text-faint)" }}>Your Eco Credits</div>
