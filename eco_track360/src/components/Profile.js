@@ -37,15 +37,23 @@ function getDefaultAvatarSVG(name = "") {
 }
 
 function Profile() {
-  // State for form fields
+  const { user, isAuthenticated } = useAuth();
+
+  // Form fields, initially empty — populated by loadProfile
   const [name, setName] = useState("");
-  const [avatarSource, setAvatarSource] = useState(""); // URL string or file object url
+  const [avatarSource, setAvatarSource] = useState(""); // avatarUrl (string for backend)
   const [avatarType, setAvatarType] = useState("url"); // "url" | "upload"
-  const [uploadedAvatar, setUploadedAvatar] = useState(null);
+  const [uploadedAvatar, setUploadedAvatar] = useState(null); // for preview only
   const [ecoPrefs, setEcoPrefs] = useState([]);
   const [errors, setErrors] = useState({});
 
-  // File input ref to clear value on change
+  // Status state for backend interaction
+  const [loading, setLoading] = useState(true);    // true on initial mount/profile fetch
+  const [loadError, setLoadError] = useState("");  // profile GET error message
+  const [saving, setSaving] = useState(false);     // true while PUT in progress
+  const [saveError, setSaveError] = useState("");  // error when PUT fails
+  const [saveSuccess, setSaveSuccess] = useState(""); // banner msg on profile PUT success
+
   const fileInputRef = useRef();
 
   /**
