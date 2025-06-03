@@ -1,12 +1,15 @@
 import React from 'react';
+import { useAuth } from '../AuthContext';
 
 /**
  * PUBLIC_INTERFACE
  * Navigation renders main navigation bar (bottom tab for mobile/minimal design).
- * Handles section selection and highlights the active section per eco UI plan.
+ * Hides if not authenticated; shows only when user is logged in and thus has access.
  */
 function Navigation({ currentSection, setSection }) {
-  // Navigation structure: label, eco icon (emoji), section-key
+  const { authenticated, logout } = useAuth();
+
+  // Navigation structure: section label, icon, key
   const navItems = [
     { label: 'Dashboard', icon: '🌎', section: 'dashboard' },
     { label: 'Rewards', icon: '🏅', section: 'rewards' },
@@ -14,9 +17,10 @@ function Navigation({ currentSection, setSection }) {
     { label: 'Integrations', icon: '🔗', section: 'integrations' },
     { label: 'Goals', icon: '🎯', section: 'goals' },
     { label: 'Leaderboard', icon: '📈', section: 'leaderboard' },
-    // Profile as main peer section
-    { label: 'Profile', icon: '🪴', section: 'profile' }, // eco styled potted plant (minimal/eco)
+    { label: 'Profile', icon: '🪴', section: 'profile' },
   ];
+
+  if (!authenticated) return null;
 
   return (
     <nav className="eco-nav">
@@ -50,6 +54,23 @@ function Navigation({ currentSection, setSection }) {
           <span>{item.label}</span>
         </button>
       ))}
+      <button
+        className="nav-btn"
+        style={{
+          background: 'var(--accent-dark)',
+          color: '#202924',
+          margin: '0 3px 0 13px',
+          fontWeight: 700,
+          fontSize: 15,
+          border: 'none',
+          borderRadius: 8,
+          padding: '7px 16px'
+        }}
+        aria-label="Logout"
+        onClick={logout}
+      >
+        Logout
+      </button>
     </nav>
   );
 }
