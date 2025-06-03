@@ -1,19 +1,131 @@
-/* Base resets and coding styles */
-* {
+/* EcoTrack360 modern eco/minimal UI – global resets and typography ------------- */
+*,
+*::before,
+*::after {
   box-sizing: border-box;
 }
 
-body {
+html, body {
   margin: 0;
   padding: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
+  height: 100%;
+  font-family: 'Inter', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+  font-weight: 400;
+  background: var(--background, #181e19);
+  color: var(--text-color, #f4f8f6);
+  line-height: 1.57;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  min-height: 100vh;
 }
 
-code {
-  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
-    monospace;
+#root {
+  min-height: 100vh;
+  min-width: 100vw;
 }
+
+a {
+  color: var(--secondary, #1976d2);
+  text-decoration: none;
+  transition: color .15s;
+}
+a:hover,
+a:focus {
+  color: #3aafff;
+  text-decoration: underline;
+}
+
+input, button, select, textarea {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  outline: none;
+}
+
+button {
+  cursor: pointer;
+}
+
+h1, h2, h3, h4, h5 {
+  margin: 0 0 0.44em 0;
+  font-family: inherit;
+  font-weight: 700;
+  letter-spacing: .01em;
+}
+
+h1 { font-size: 2.35rem; }
+h2 { font-size: 1.49rem; }
+h3 { font-size: 1.12rem; }
+
+/* Code/monospace blocks for eco look */
+code, pre {
+  font-family: 'Fira Mono', 'Menlo', 'Monaco', 'Consolas', 'Courier New', monospace;
+  background: #1b241c;
+  color: var(--accent);
+  padding: 1.5px 6px;
+  border-radius: 6px;
+  font-size: .99em;
+}
+
+/* Remove tap highlight and set base focus color */
+body, button, input, textarea {
+  -webkit-tap-highlight-color: rgba(46, 125, 50, 0.11);
+}
+:focus {
+  outline-color: var(--focus, #d4ff99);
+}
+
+/* Minimum contrast link outline for accessibility */
+a:focus {
+  outline-style: solid;
+  outline-width: 2px;
+  outline-offset: 2px;
+}
+
+/* Remove list styles for navs (used in custom tab bars) */
+ul, ol {
+  padding-left: 1.2em;
+  margin-top: .3em;
+  margin-bottom: .9em;
+}
+ul[role="tablist"], 
+.ol[role="tablist"],
+.nav-list, .eco-nav {
+  padding: 0;
+  list-style: none;
+  margin: 0;
+}
+
+/* Better selection highlight */
+::selection {
+  background: #38b88733;
+  color: #163711;
+}
+
+/* Hide default arrows in number inputs for minimalist look */
+input[type=number]::-webkit-inner-spin-button, 
+input[type=number]::-webkit-outer-spin-button { 
+  -webkit-appearance: none;
+  margin: 0; 
+}
+input[type=number] {
+  -moz-appearance: textfield;
+}
+
+/* Miscellaneous form and error states */
+input:focus, textarea:focus, select:focus {
+  outline: 2px solid var(--secondary, #1976D2);
+}
+
+/* Responsive font scaling */
+@media (max-width: 420px) {
+  html { font-size: 15px; }
+}
+
+/* For easier dev: visible color variables in dev tools
+:root {
+  outline: 0.3px dashed var(--primary);
+}
+*/
