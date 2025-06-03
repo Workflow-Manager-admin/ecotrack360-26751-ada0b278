@@ -38,21 +38,45 @@ const INITIAL_GOALS = [
   }
 ];
 
-// PUBLIC_INTERFACE
+/**
+ * PUBLIC_INTERFACE
+ * GoalTracking lets users create and view climate goals, and visually tracks progress.
+ * Now enhanced: supports full CRUD (add, edit, delete) with robust controlled forms, validation, and immediate state/UI updates.
+ */
 function GoalTracking() {
-  // Goal state (array of goal objects)
+  // Goal state
   const [goals, setGoals] = useState(INITIAL_GOALS);
-  // Track for new goal input UI
+
+  // Add form
   const [showAdd, setShowAdd] = useState(false);
   const [newGoal, setNewGoal] = useState({ title: "", target: "", icon: GOAL_ICONS[0] });
-  // Undo state: {type: 'remove'|'complete', goal, index, prevStatus, prevProgress}
-  const [undoState, setUndoState] = useState(null);
+  const [addError, setAddError] = useState(""); // error message for add
+
+  // Edit state
+  const [editIdx, setEditIdx] = useState(null); // index of goal being edited
+  const [editGoal, setEditGoal] = useState(null);
+  const [editError, setEditError] = useState("");
+
+  // Undo/Confirm
+  const [undoState, setUndoState] = useState(null); // for remove/complete
+  const [removeConfirm, setRemoveConfirm] = useState(null); // { idx, title }
 
   // PUBLIC_INTERFACE
-  // Add a new goal to the list
+  // Add Goal with inline validation
   function handleAddGoal(e) {
     e.preventDefault();
-    if (!newGoal.title.trim() || !newGoal.target.trim()) return;
+    if (!newGoal.title.trim() || !newGoal.target.trim()) {
+      setAddError("Goal title and target required.");
+      return;
+    }
+    if (newGoal.title.length > 120) {
+      setAddError("Title too long, must be under 120 characters.");
+      return;
+    }
+    if (newGoal.target.length > 60) {
+      setAddError("Target too long, must be under 60 characters.");
+      return;
+    }
     setGoals(oldGoals => [
       {
         title: newGoal.title,
@@ -63,13 +87,51 @@ function GoalTracking() {
       },
       ...oldGoals
     ]);
-    // Reset/close input
+    setAddError("");
     setNewGoal({ title: "", target: "", icon: GOAL_ICONS[0] });
     setShowAdd(false);
   }
 
   // PUBLIC_INTERFACE
-  // Mark a goal as completed, updating its state
+  // Edit Goal: Show form for editIdx, allow editing title, target, icon with validation
+  function handleEditGoal(idx) {
+    setEditIdx(idx);
+    setEditGoal({ ...goals[idx] });
+    setEditError("");
+  }
+  function handleEditSubmit(e) {
+    e.preventDefault();
+    if (!editGoal.title.trim() || !editGoal.target.trim()) {
+      setEditError("Goal title and target required.");
+      return;
+    }
+    if (editGoal.title.length > 120) {
+      setEditError("Title too long, must be under 120 characters.");
+      return;
+    }
+    if (editGoal.target.length > 60) {
+      setEditError("Target too long, must be under 60 characters.");
+      return;
+    }
+    setGoals(goals =>
+      goals.map((g, i) =>
+        i === editIdx
+          ? { ...g, title: editGoal.title, target: editGoal.target, icon: editGoal.icon }
+          : g
+      )
+    );
+    setEditIdx(null);
+    setEditGoal(null);
+    setEditError("");
+  }
+  function handleEditCancel() {
+    setEditGoal(null);
+    setEditIdx(null);
+    setEditError("");
+  }
+
+  // PUBLIC_INTERFACE
+  // Mark as complete
   function handleComplete(idx) {
     const goal = goals[idx];
     if (!goal || goal.progress === 100) return;
@@ -90,34 +152,7 @@ function GoalTracking() {
   }
 
   // PUBLIC_INTERFACE
-  // Remove a goal (used only for completed goals, UI allows only removal of 100% ones)
-  const [removeConfirm, setRemoveConfirm] = useState(null); // { goalIdx, goalTitle }
-
-  function handleRemove(idx) {
-    const goal = goals[idx];
-    setRemoveConfirm({ idx, title: goal.title });
-  }
-
-  function confirmRemoveGoal() {
-    if (removeConfirm) {
-      const idx = removeConfirm.idx;
-      const goal = goals[idx];
-      setUndoState({
-        type: 'remove',
-        goal: { ...goal },
-        index: idx
-      });
-      setGoals(goals => goals.filter((g, i) => i !== idx));
-    }
-    setRemoveConfirm(null);
-  }
-
-  function cancelRemoveGoal() {
-    setRemoveConfirm(null);
-  }
-
-  // PUBLIC_INTERFACE
-  // Demo: Incrementally track progress (simulate with +10% per click)
+  // Increment progress
   function handleIncrement(idx) {
     setGoals(goals =>
       goals.map((g, i) =>
@@ -133,6 +168,28 @@ function GoalTracking() {
           : g
       )
     );
+  }
+
+  // REMOVE/DELETE (works for both active and completed)
+  function handleRemove(idx) {
+    const goal = goals[idx];
+    setRemoveConfirm({ idx, title: goal.title });
+  }
+  function confirmRemoveGoal() {
+    if (removeConfirm) {
+      const idx = removeConfirm.idx;
+      const goal = goals[idx];
+      setUndoState({
+        type: 'remove',
+        goal: { ...goal },
+        index: idx
+      });
+      setGoals(goals => goals.filter((g, i) => i !== idx));
+    }
+    setRemoveConfirm(null);
+  }
+  function cancelRemoveGoal() {
+    setRemoveConfirm(null);
   }
 
   // Undo for removal or completion
@@ -161,9 +218,9 @@ function GoalTracking() {
     setUndoState(null);
   }
 
-  // Break into active/in-progress and completed for display
-  const activeGoals = goals.filter(g => g.progress < 100);
-  const completedGoals = goals.filter(g => g.progress === 100);
+  // For rendering, split into active/in-progress and achieved goals
+  const activeGoals = goals.filter((g, i) => g.progress < 100);
+  const completedGoals = goals.filter((g, i) => g.progress === 100);
 
   return (
     <div>
@@ -232,6 +289,7 @@ function GoalTracking() {
               onChange={e =>
                 setNewGoal(ng => ({ ...ng, title: e.target.value }))
               }
+              maxLength={120}
             />
             <input
               type="text"
@@ -250,6 +308,7 @@ function GoalTracking() {
               onChange={e =>
                 setNewGoal(ng => ({ ...ng, target: e.target.value }))
               }
+              maxLength={60}
             />
             <button
               className="btn"
@@ -271,10 +330,16 @@ function GoalTracking() {
               onClick={() => {
                 setNewGoal({ title: "", target: "", icon: GOAL_ICONS[0] });
                 setShowAdd(false);
+                setAddError("");
               }}
             >
               Cancel
             </button>
+            {addError && (
+              <div style={{ color: "#c0392b", fontSize: 13, flexBasis: "100%", marginTop: 3 }}>
+                {addError}
+              </div>
+            )}
           </form>
         ) : (
           <div style={{ marginBottom: 14 }}>
@@ -295,82 +360,201 @@ function GoalTracking() {
             No active goals! Add a new goal above.
           </div>
         )}
-        {activeGoals.map((goal, i) => (
-          <div key={goal.title + '-active'} className="eco-card" style={{
-            display: "flex", alignItems: "center", gap: 17, marginBottom: 11
-          }}>
-            <div style={{ fontSize: "2em", minWidth: 39 }}>{goal.icon}</div>
-            <div style={{ flex: 1, minWidth: 140 }}>
-              <div style={{ fontWeight: 700, fontSize: 17, color: "var(--primary)" }}>
-                {goal.title}
-              </div>
-              <div style={{ fontSize: 13, color: "var(--text-faint)" }}>
-                {goal.target} – <em>{goal.status || "Active"}</em>
-              </div>
-              {/* Progress ring/bar */}
-              <div className="progress-bar-bg" style={{ height: 15, marginTop: 7 }}>
-                <div
-                  className="progress-bar-fg"
+        {goals.map((goal, i) => {
+          const isCompleted = goal.progress === 100;
+          if (editIdx === i) {
+            // Edit form UI
+            return (
+              <form key={goal.title + (isCompleted ? "-done" : "-active") + "-edit"}
+                className="eco-card"
+                style={{
+                  display: "flex", alignItems: "center", gap: 13, marginBottom: 10, flexWrap: "wrap",
+                  background: isCompleted ? "#f3ffec" : undefined, color: isCompleted ? "#202924" : undefined
+                }}
+                onSubmit={handleEditSubmit}
+              >
+                <span style={{ fontSize: "1.6em", minWidth: 40 }}>
+                  <select
+                    value={editGoal.icon}
+                    aria-label="Goal icon"
+                    style={{ fontSize: "1.2em", border: "none", background: "transparent", color: "var(--primary)" }}
+                    onChange={e => setEditGoal(g => ({ ...g, icon: e.target.value }))}
+                  >
+                    {GOAL_ICONS.map(icn => (
+                      <option key={icn} value={icn}>{icn}</option>
+                    ))}
+                  </select>
+                </span>
+                <input
+                  type="text"
+                  required
+                  value={editGoal.title}
+                  aria-label="Edit goal title"
                   style={{
-                    width: goal.progress + '%',
-                    background: "var(--primary)"
+                    flex: "3",
+                    background: "var(--surface)",
+                    border: "1.1px solid var(--card-border)",
+                    borderRadius: 7,
+                    padding: "5px 11px",
+                    color: "var(--text-color)"
                   }}
+                  onChange={e => setEditGoal(g => ({ ...g, title: e.target.value }))}
+                  maxLength={120}
                 />
+                <input
+                  type="text"
+                  required
+                  value={editGoal.target}
+                  aria-label="Edit goal target"
+                  style={{
+                    flex: "2",
+                    background: "var(--surface)",
+                    border: "1.1px solid var(--card-border)",
+                    borderRadius: 7,
+                    padding: "5px 11px",
+                    color: "var(--text-color)"
+                  }}
+                  onChange={e => setEditGoal(g => ({ ...g, target: e.target.value }))}
+                  maxLength={60}
+                />
+                <button
+                  className="btn"
+                  type="submit"
+                  style={{ fontWeight: 650, fontSize: 15, padding: "7px 15px" }}
+                >
+                  Save
+                </button>
+                <button
+                  className="btn"
+                  type="button"
+                  style={{
+                    background: "var(--accent-dark)",
+                    color: "#202924",
+                    padding: "7px 11px",
+                    fontSize: 13,
+                    marginLeft: 6
+                  }}
+                  onClick={handleEditCancel}
+                >
+                  Cancel
+                </button>
+                {editError && (
+                  <div style={{ color: "#c0392b", fontSize: 13, flexBasis: "100%", marginTop: 3 }}>
+                    {editError}
+                  </div>
+                )}
+              </form>
+            );
+          }
+          // Regular goal card
+          if (!isCompleted) {
+            // Active/in-progress
+            return (
+              <div key={goal.title + '-active'} className="eco-card" style={{
+                display: "flex", alignItems: "center", gap: 17, marginBottom: 10
+              }}>
+                <div style={{ fontSize: "2em", minWidth: 39 }}>{goal.icon}</div>
+                <div style={{ flex: 1, minWidth: 140 }}>
+                  <div style={{ fontWeight: 700, fontSize: 17, color: "var(--primary)" }}>
+                    {goal.title}
+                  </div>
+                  <div style={{ fontSize: 13, color: "var(--text-faint)" }}>
+                    {goal.target} – <em>{goal.status || "Active"}</em>
+                  </div>
+                  {/* Progress ring/bar */}
+                  <div className="progress-bar-bg" style={{ height: 15, marginTop: 7 }}>
+                    <div
+                      className="progress-bar-fg"
+                      style={{
+                        width: goal.progress + '%',
+                        background: "var(--primary)"
+                      }}
+                    />
+                  </div>
+                </div>
+                <div className="ml-sm" style={{
+                  fontWeight: 800,
+                  color: "var(--secondary)",
+                  minWidth: 46,
+                  textAlign: "center",
+                  fontSize: 15
+                }}>
+                  {goal.progress}%
+                </div>
+                <div>
+                  <button
+                    className="btn"
+                    title="Increment progress"
+                    style={{
+                      padding: "2px 10px",
+                      fontSize: 14,
+                      background: "var(--secondary)",
+                      marginRight: 5
+                    }}
+                    aria-label="Increment progress"
+                    onClick={() => handleIncrement(i)}
+                    disabled={goal.progress >= 100}
+                  >
+                    +10%
+                  </button>
+                  <button
+                    className="btn"
+                    title="Mark as complete"
+                    style={{
+                      padding: "2px 9px",
+                      fontSize: 14,
+                      background: goal.progress >= 100 ? "#d4ff99" : "var(--primary)",
+                      color: goal.progress >= 100 ? "#537620" : "#fff"
+                    }}
+                    aria-label="Mark as complete"
+                    onClick={() => handleComplete(i)}
+                    disabled={goal.progress >= 100}
+                  >
+                    {goal.progress >= 100 ? "Complete" : "Mark Complete"}
+                  </button>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  <button
+                    className="btn"
+                    style={{
+                      background: "var(--accent-dark)",
+                      color: "#202924",
+                      fontWeight: 600,
+                      fontSize: 13,
+                      marginTop: 2,
+                      padding: "3px 12px"
+                    }}
+                    title="Edit goal"
+                    aria-label="Edit goal"
+                    onClick={() => handleEditGoal(i)}
+                  >
+                    Edit
+                  </button>
+                  <button
+                    className="btn"
+                    style={{
+                      background: "#fff0e0",
+                      color: "#633220",
+                      fontWeight: 600,
+                      fontSize: 13,
+                      marginTop: 2,
+                      padding: "3px 12px",
+                      border: "1.1px solid var(--accent-dark)"
+                    }}
+                    title="Delete goal"
+                    aria-label="Delete goal"
+                    onClick={() => handleRemove(i)}
+                  >
+                    Delete
+                  </button>
+                </div>
               </div>
-            </div>
-            <div className="ml-sm" style={{
-              fontWeight: 800,
-              color: "var(--secondary)",
-              minWidth: 46,
-              textAlign: "center",
-              fontSize: 15
-            }}>
-              {goal.progress}%
-            </div>
-            <div>
-              <button
-                className="btn"
-                title="Increment progress"
-                style={{
-                  padding: "2px 10px",
-                  fontSize: 14,
-                  background: "var(--secondary)",
-                  marginRight: 6
-                }}
-                aria-label="Increment progress"
-                onClick={() => handleIncrement(goals.findIndex(g => g === goal))}
-                disabled={goal.progress >= 100}
-              >
-                +10%
-              </button>
-              <button
-                className="btn"
-                title="Mark as complete"
-                style={{
-                  padding: " 2px 9px",
-                  fontSize: 14,
-                  background: goal.progress >= 100 ? "#d4ff99" : "var(--primary)",
-                  color: goal.progress >= 100 ? "#537620" : "#fff"
-                }}
-                aria-label="Mark as complete"
-                onClick={() => handleComplete(goals.findIndex(g => g === goal))}
-                disabled={goal.progress >= 100}
-              >
-                {goal.progress >= 100 ? "Complete" : "Mark Complete"}
-              </button>
-            </div>
-          </div>
-        ))}
-
-        {/* Completed goals */}
-        {completedGoals.length > 0 && (
-          <>
-            <div style={{ fontWeight: 700, color: "var(--accent)", fontSize: 14, marginTop: 16, marginBottom: 5 }}>
-              Completed Goals
-            </div>
-            {completedGoals.map((goal, i) => (
+            );
+          } else {
+            // Completed/achieved
+            return (
               <div key={goal.title + '-done'} className="eco-card" style={{
-                display: "flex", alignItems: "center", gap: 17, marginBottom: 11, background: "#d4ff99", color: "#202924"
+                display: "flex", alignItems: "center", gap: 17, marginBottom: 10, background: "#d4ff99", color: "#202924"
               }}>
                 <div style={{ fontSize: "2em", minWidth: 39 }}>{goal.icon}</div>
                 <div style={{ flex: 1, minWidth: 130 }}>
@@ -399,47 +583,66 @@ function GoalTracking() {
                 }}>
                   100%
                 </div>
-                <button
-                  className="btn"
-                  style={{
-                    background: "var(--accent-dark)",
-                    color: "#202924",
-                    fontWeight: 600,
-                    fontSize: 13
-                  }}
-                  title="Remove goal"
-                  aria-label="Remove goal"
-                  onClick={() => handleRemove(goals.findIndex(g => g === goal))}
-                >
-                  Remove
-                </button>
+                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  <button
+                    className="btn"
+                    style={{
+                      background: "var(--accent-dark)",
+                      color: "#202924",
+                      fontWeight: 600,
+                      fontSize: 13,
+                      marginTop: 2,
+                      padding: "3px 12px"
+                    }}
+                    title="Edit goal"
+                    aria-label="Edit goal"
+                    onClick={() => handleEditGoal(i)}
+                  >
+                    Edit
+                  </button>
+                  <button
+                    className="btn"
+                    style={{
+                      background: "#fff0e0",
+                      color: "#633220",
+                      fontWeight: 600,
+                      fontSize: 13,
+                      marginTop: 2,
+                      padding: "3px 12px",
+                      border: "1.1px solid var(--accent-dark)"
+                    }}
+                    title="Delete goal"
+                    aria-label="Delete goal"
+                    onClick={() => handleRemove(i)}
+                  >
+                    Delete
+                  </button>
+                </div>
               </div>
-            ))}
-          </>
-        )}
+            );
+          }
+        })}
       </div>
-
-      {/* Tip/highlight area for feature explanation */}
+      {/* Tips */}
       <div className="eco-highlight text-center">
         <div style={{fontWeight: 600, fontSize: 16}}>
-          Set, update, and complete your climate action goals!
+          Set, update, edit and remove your climate action goals!
         </div>
         <div style={{fontSize:13, color:"var(--text-faint)"}}>
-          Track your progress, mark achievements, and remove completed goals. All data is demo/mock and saved only in your session.
+          Track your progress, mark achievements, remove or edit goals. All data is demo/mock and saved only in your session.
         </div>
       </div>
-
       <div className="mt-md" style={{fontSize:13, color:"var(--text-faint)", textAlign:"center"}}>
-        Tip: Try adding a new goal, updating progress, or removing one after completion!
+        Tip: Try adding, editing, or deleting a goal – or updating its progress!
       </div>
       {/* Confirmation dialog for destructive removal */}
       <ConfirmationModal
         open={!!removeConfirm}
-        title="Remove Goal"
-        message={`Are you sure you want to permanently remove the goal "${removeConfirm?.title}"? This cannot be undone.`}
+        title="Delete Goal"
+        message={`Are you sure you want to permanently delete the goal "${removeConfirm?.title}"? This cannot be undone.`}
         onCancel={cancelRemoveGoal}
         onConfirm={confirmRemoveGoal}
-        confirmLabel="Remove"
+        confirmLabel="Delete"
         cancelLabel="Cancel"
       />
     </div>
