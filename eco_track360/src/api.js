@@ -61,3 +61,50 @@ export async function apiFetch(url, { method = "GET", body, headers = {}, ...opt
   }
   return response.json();
 }
+
+// ==== Additional API endpoint implementations (exports required by components) ====
+
+// PUBLIC_INTERFACE
+export async function getGoals() {
+  return apiFetch("/api/goals");
+}
+
+// PUBLIC_INTERFACE
+export async function addGoal(goal) {
+  return apiFetch("/api/goals", { method: "POST", body: goal });
+}
+
+// PUBLIC_INTERFACE
+export async function updateGoal(id, updates) {
+  return apiFetch(`/api/goals/${id}`, { method: "PUT", body: updates });
+}
+
+// PUBLIC_INTERFACE
+export async function deleteGoal(id) {
+  return apiFetch(`/api/goals/${id}`, { method: "DELETE" });
+}
+
+// PUBLIC_INTERFACE
+export async function getProfile() {
+  return apiFetch("/api/profile");
+}
+
+// PUBLIC_INTERFACE
+export async function updateProfile(profile) {
+  return apiFetch("/api/profile", { method: "PUT", body: profile });
+}
+
+// PUBLIC_INTERFACE
+export async function getRewards() {
+  return apiFetch("/api/rewards");
+}
+
+// PUBLIC_INTERFACE
+export async function claimReward(label, credits) {
+  return apiFetch("/api/rewards/claim", { method: "POST", body: { label, credits } });
+}
+
+// PUBLIC_INTERFACE
+export async function redeemReward(rewardId) {
+  return apiFetch(`/api/rewards/redeem`, { method: "POST", body: { rewardId } });
+}
