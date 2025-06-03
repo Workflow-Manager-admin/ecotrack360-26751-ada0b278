@@ -9,12 +9,48 @@ export default function Login({ onToggle }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [localError, setLocalError] = useState(null);
+  const [emailError, setEmailError] = useState(null);
+  const [passwordError, setPasswordError] = useState(null);
 
+  function validateEmail(val) {
+    // Simple regex for email validation
+    return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(val.trim());
+  }
+
+  function validatePassword(val) {
+    // Minimum 6 chars required for login (register is stricter)
+    return val.length >= 6;
+  }
+
+  // PUBLIC_INTERFACE
   async function handleSubmit(e) {
     e.preventDefault();
     setLocalError(null);
-    if (!email.trim() || !password.trim()) {
-      setLocalError("Please enter both email and password.");
+    let anyError = false;
+
+    // Email validation
+    if (!email.trim()) {
+      setEmailError("Email required.");
+      anyError = true;
+    } else if (!validateEmail(email)) {
+      setEmailError("Invalid email format.");
+      anyError = true;
+    } else {
+      setEmailError(null);
+    }
+    // Password validation
+    if (!password) {
+      setPasswordError("Password required.");
+      anyError = true;
+    } else if (!validatePassword(password)) {
+      setPasswordError("Password must be at least 6 characters.");
+      anyError = true;
+    } else {
+      setPasswordError(null);
+    }
+
+    if (anyError) {
+      setLocalError("Please fix the form errors to continue.");
       return;
     }
     await login(email.trim(), password);
