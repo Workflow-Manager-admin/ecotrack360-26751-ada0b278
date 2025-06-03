@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import UndoNotification from './UndoNotification';
+import ConfirmationModal from './ConfirmationModal';
 
 /**
  * PUBLIC_INTERFACE

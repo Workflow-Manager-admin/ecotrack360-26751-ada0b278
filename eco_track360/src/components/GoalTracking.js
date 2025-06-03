@@ -432,6 +432,16 @@ function GoalTracking() {
       <div className="mt-md" style={{fontSize:13, color:"var(--text-faint)", textAlign:"center"}}>
         Tip: Try adding a new goal, updating progress, or removing one after completion!
       </div>
+      {/* Confirmation dialog for destructive removal */}
+      <ConfirmationModal
+        open={!!removeConfirm}
+        title="Remove Goal"
+        message={`Are you sure you want to permanently remove the goal "${removeConfirm?.title}"? This cannot be undone.`}
+        onCancel={cancelRemoveGoal}
+        onConfirm={confirmRemoveGoal}
+        confirmLabel="Remove"
+        cancelLabel="Cancel"
+      />
     </div>
   );
 }
