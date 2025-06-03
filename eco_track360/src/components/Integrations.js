@@ -233,6 +233,16 @@ function Integrations() {
       <div className="eco-highlight text-center mt-md sm-text">
         (All logic and data are local demo only. No accounts, API, or real data involved.)
       </div>
+      {/* Confirmation for disconnect */}
+      <ConfirmationModal
+        open={!!pendingDisconnect}
+        title="Disconnect Integration"
+        message={`Are you sure you want to disconnect ${pendingDisconnect?.label}? This will stop importing corresponding mock data.`}
+        onCancel={cancelDisconnectIntegration}
+        onConfirm={confirmDisconnectIntegration}
+        confirmLabel="Disconnect"
+        cancelLabel="Cancel"
+      />
     </div>
   );
 }
