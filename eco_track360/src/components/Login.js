@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import { useAuth } from "../AuthContext";
 import LoadingSpinner from "./LoadingSpinner";
 import ErrorBanner from "./ErrorBanner";
@@ -12,6 +12,16 @@ export default function Login({ onToggle }) {
   const [emailError, setEmailError] = useState(null);
   const [passwordError, setPasswordError] = useState(null);
 
+  // Call this to fully reset all form state (including external/global error)
+  const resetAll = useCallback(() => {
+    setEmail("");
+    setPassword("");
+    setLocalError(null);
+    setEmailError(null);
+    setPasswordError(null);
+    setAuthError && setAuthError(null); // clear AuthContext error if present
+  }, [setAuthError]);
+
   function validateEmail(val) {
     // Simple regex for email validation
     return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(val.trim());
@@ -20,6 +30,18 @@ export default function Login({ onToggle }) {
   function validatePassword(val) {
     // Minimum 6 chars required for login (register is stricter)
     return val.length >= 6;
+  }
+
+  // Ensure state always resets fully on mount/unmount of this component
+  React.useEffect(() => {
+    resetAll();
+    // eslint-disable-next-line
+  }, []);
+
+  // PUBLIC_INTERFACE: Also reset if user clicks the "Register" link
+  function handleSwitchToRegister() {
+    resetAll();
+    onToggle && onToggle();
   }
 
   // PUBLIC_INTERFACE
@@ -56,9 +78,17 @@ export default function Login({ onToggle }) {
     await login(email.trim(), password);
   }
 
+  // We want backend error to show under password input in a distinct banner style, but inside the form
   return (
     <div style={{ maxWidth: 400, margin: "80px auto 0" }}>
-      <h2 style={{ textAlign: "center", marginBottom: 22, color: "var(--primary)" }}>Sign In</h2>
+      <h2 style={{
+        textAlign: "center",
+        marginBottom: 22,
+        color: "var(--primary)",
+        letterSpacing: ".01em"
+      }}>
+        Sign In
+      </h2>
       <form className="eco-card" onSubmit={handleSubmit} style={{ padding: 26 }}>
         <div style={{ marginBottom: 18 }}>
           <label style={{ fontWeight: 600 }}>
@@ -77,6 +107,8 @@ export default function Login({ onToggle }) {
                 } else {
                   setEmailError(null);
                 }
+                setLocalError(null);
+                setAuthError && setAuthError(null);
               }}
               style={{
                 display: "block",
@@ -126,6 +158,8 @@ export default function Login({ onToggle }) {
                 } else {
                   setPasswordError(null);
                 }
+                setLocalError(null);
+                setAuthError && setAuthError(null);
               }}
               style={{
                 display: "block",
@@ -141,7 +175,7 @@ export default function Login({ onToggle }) {
               required
               minLength={6}
               aria-invalid={Boolean(passwordError)}
-              aria-describedby={passwordError ? "login-password-error" : undefined}
+              aria-describedby={passwordError ? "login-password-error" : (error ? "login-password-backend-error" : undefined)}
             />
             {passwordError && (
               <div
@@ -158,10 +192,50 @@ export default function Login({ onToggle }) {
                 {passwordError}
               </div>
             )}
+
+            {/* Backend error for password (login failure, etc.): show directly below, very visible */}
+            {error &&
+              <div
+                id="login-password-backend-error"
+                style={{
+                  color: "#fff",
+                  background: "#b8002b",
+                  padding: "6px 12px",
+                  borderRadius: "6px",
+                  marginTop: 8,
+                  marginLeft: 0,
+                  fontSize: 14.3,
+                  fontWeight: 600,
+                  letterSpacing: ".01em",
+                  boxShadow: "0 4px 24px #1a1a1a13"
+                }}
+                role="alert"
+                aria-live="polite"
+              >
+                {error}
+                <button
+                  type="button"
+                  onClick={() => setAuthError(null)}
+                  style={{
+                    marginLeft: 14,
+                    color: "#fff",
+                    background: "none",
+                    border: "none",
+                    fontSize: 17,
+                    fontWeight: 900,
+                    cursor: "pointer",
+                    verticalAlign: "middle"
+                  }}
+                  aria-label="Dismiss error"
+                >
+                  ×
+                </button>
+              </div>
+            }
           </label>
         </div>
+        {/* Other client/local errors */}
         {localError && <ErrorBanner message={localError} onClose={() => setLocalError(null)} />}
-        {error && <ErrorBanner message={error} onClose={() => setAuthError(null)} />}
         <button
           className="btn"
           disabled={loading}
@@ -170,13 +244,25 @@ export default function Login({ onToggle }) {
         >
           {loading ? "Signing in..." : "Sign In"}
         </button>
-        <div style={{ marginTop: 7, textAlign: "center", fontSize: 13, color: "var(--text-faint)" }}>
-          No account yet?{" "}
+        <div style={{ marginTop: 17, textAlign: "center", fontSize: 15, color: "var(--text-faint)" }}>
+          <span style={{ fontWeight: 400 }}>No account yet?</span>
           <button
             type="button"
             className="btn"
-            style={{ background: "var(--accent-dark)", color: "#202924", fontWeight: 650, fontSize: 13, padding: 6 }}
-            onClick={onToggle}
+            style={{
+              background: "var(--secondary)",
+              color: "#fff",
+              fontWeight: 700,
+              fontSize: 14,
+              padding: "6px 24px",
+              marginLeft: 12,
+              borderRadius: 7,
+              marginTop: -2,
+              boxShadow: "0 1.5px 10px #1976d236"
+            }}
+            onClick={handleSwitchToRegister}
+            aria-label="Switch to register"
+            tabIndex={0}
           >
             Register
           </button>
