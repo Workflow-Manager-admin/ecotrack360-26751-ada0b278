@@ -9,12 +9,52 @@ export default function Register({ onToggle }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [localError, setLocalError] = useState(null);
+  const [emailError, setEmailError] = useState(null);
+  const [passwordError, setPasswordError] = useState(null);
 
+  function validateEmail(val) {
+    // Basic email regex
+    return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(val.trim());
+  }
+  function validatePassword(val) {
+    // Minimum 8 chars, at least one letter, one number
+    if (val.length < 8) return "Password must be at least 8 characters.";
+    if (!/[a-zA-Z]/.test(val) || !/[0-9]/.test(val))
+      return "Password must include both letters and numbers.";
+    if (/^\s+$/.test(val)) return "Password cannot be blank spaces.";
+    return null;
+  }
+
+  // PUBLIC_INTERFACE
   async function handleSubmit(e) {
     e.preventDefault();
     setLocalError(null);
-    if (!email.trim() || !password.trim()) {
-      setLocalError("Please enter email and password.");
+    let anyError = false;
+
+    // Validate email
+    if (!email.trim()) {
+      setEmailError("Email required.");
+      anyError = true;
+    } else if (!validateEmail(email)) {
+      setEmailError("Invalid email format.");
+      anyError = true;
+    } else {
+      setEmailError(null);
+    }
+    // Validate password strength
+    const pwdErr = validatePassword(password);
+    if (!password) {
+      setPasswordError("Password required.");
+      anyError = true;
+    } else if (pwdErr) {
+      setPasswordError(pwdErr);
+      anyError = true;
+    } else {
+      setPasswordError(null);
+    }
+
+    if (anyError) {
+      setLocalError("Please fix the form errors to continue.");
       return;
     }
     await register(email.trim(), password);
