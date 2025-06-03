@@ -1,76 +1,120 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
-import * as api from "./api";
+import React, { createContext, useContext, useState, useEffect, useRef } from "react";
 
-// PUBLIC_INTERFACE
+// Utility: parse JWT for minimal info
+function parseJwt(token) {
+  if (!token) return null;
+  try {
+    return JSON.parse(atob(token.split('.')[1]));
+  } catch {
+    return null;
+  }
+}
+
+// --- AuthContext creation ---
 const AuthContext = createContext();
 
+// Global handle for API use—set on mount
+let _authContextApi = null;
+
+// PUBLIC_INTERFACE
+export function getAuthContextApi() {
+  return _authContextApi;
+}
+
+// PUBLIC_INTERFACE
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
-  const [authLoading, setAuthLoading] = useState(true);
-  const [authError, setAuthError] = useState(null);
+  // Auth state
+  const [authenticated, setAuthenticated] = useState(!!localStorage.getItem("jwt"));
+  const [user, setUser] = useState(null);  // Parsed claims, not fetched profile
+  const [errorMessage, setErrorMessage] = useState("");
+  const [sessionExpired, setSessionExpired] = useState(false);
 
-  // On mount, restore session if token exists
-  useEffect(() => {
-    const storedUser = api.getStoredUser();
-    if (storedUser) {
-      setUser(storedUser);
-    }
-    setAuthLoading(false);
-  }, []);
+  // This ref prevents duplicate expiry banners/timeouts
+  const sessionExpireTimeout = useRef();
 
   // PUBLIC_INTERFACE
-  const login = useCallback(async (email, password) => {
-    setAuthLoading(true);
-    setAuthError(null);
-    try {
-      const user = await api.login(email, password);
-      setUser(api.getStoredUser());
-      setAuthLoading(false);
-      return { success: true };
-    } catch (e) {
-      setAuthError(e.message);
-      setAuthLoading(false);
-      return { success: false, error: e.message };
-    }
-  }, []);
-
-  // PUBLIC_INTERFACE
-  const register = useCallback(async (email, password) => {
-    setAuthLoading(true);
-    setAuthError(null);
-    try {
-      const user = await api.register(email, password);
-      setUser(api.getStoredUser());
-      setAuthLoading(false);
-      return { success: true };
-    } catch (e) {
-      setAuthError(e.message);
-      setAuthLoading(false);
-      return { success: false, error: e.message };
-    }
-  }, []);
-
-  // PUBLIC_INTERFACE
-  const logout = useCallback(() => {
-    api.logout();
+  // Called by api.js on 401 to force user signout, clear JWT and present session expired UI notification
+  function forceLogoutDueToSession() {
+    localStorage.removeItem("jwt");
+    setAuthenticated(false);
     setUser(null);
-    setAuthLoading(false);
-  }, []);
+    setSessionExpired(true);
+    setErrorMessage("");
+    if (sessionExpireTimeout.current) clearTimeout(sessionExpireTimeout.current);
+    sessionExpireTimeout.current = setTimeout(() => setSessionExpired(false), 7000);
+  }
 
-  // For debugging/development
-  window.__ecoAuth = { user, login, logout, register };
+  // Error feedback for UI banners
+  const setAuthError = (errMsg) => {
+    setErrorMessage(errMsg);
+    setTimeout(() => setErrorMessage(""), 4000);
+  };
+  const resetSessionError = () => setSessionExpired(false);
 
-  return (
-    <AuthContext.Provider value={{
-      user,
-      authenticated: !!user,
-      loading: authLoading,
-      error: authError,
-      login,
-      register,
+  // On mount: check for valid JWT, expire if needed; also install global API pointer for api.js
+  useEffect(() => {
+    const token = localStorage.getItem("jwt");
+    let claims = parseJwt(token);
+    if (token && claims && claims.exp && claims.exp * 1000 < Date.now()) {
+      localStorage.removeItem("jwt");
+      setSessionExpired(true);
+      setAuthenticated(false);
+      setUser(null);
+    } else if (token && claims) {
+      setAuthenticated(true);
+      setUser(claims);
+    } else {
+      setAuthenticated(false);
+      setUser(null);
+    }
+    _authContextApi = {
+      forceLogoutDueToSession,
+      isAuthenticated: !!token,
       logout,
-      setAuthError
-    }}>
+      login,
+      setAuthError,
+      getAuthenticatedUser: () => user,
+    };
+    return () => {
+      if (sessionExpireTimeout.current) clearTimeout(sessionExpireTimeout.current);
+      _authContextApi = null;
+    };
+    // eslint-disable-next-line
+  }, []); // only on mount
+
+  // PUBLIC_INTERFACE
+  const login = (jwt) => {
+    localStorage.setItem("jwt", jwt);
+    setAuthenticated(true);
+    const claims = parseJwt(jwt);
+    setUser(claims);
+    setErrorMessage("");
+    setSessionExpired(false);
+  };
+  // PUBLIC_INTERFACE
+  const logout = () => {
+    localStorage.removeItem("jwt");
+    setAuthenticated(false);
+    setUser(null);
+    setSessionExpired(false);
+  };
+
+  // Provide AuthContext to app
+  return (
+    <AuthContext.Provider
+      value={{
+        authenticated,
+        user,
+        errorMessage,
+        login,
+        logout,
+        setAuthError,
+        sessionExpired,
+        resetSessionError,
+        isAuthenticated: authenticated,
+        forceLogoutDueToSession, // expose for components if needed
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
@@ -78,7 +122,5 @@ export function AuthProvider({ children }) {
 
 // PUBLIC_INTERFACE
 export function useAuth() {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useAuth must be used within AuthProvider");
-  return ctx;
+  return useContext(AuthContext);
 }
