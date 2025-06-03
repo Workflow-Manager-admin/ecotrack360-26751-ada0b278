@@ -157,21 +157,35 @@ function Profile() {
       .join(", ");
   }
 
-  /**
-   * PUBLIC_INTERFACE
-   * Handles name input change and validation.
-   */
+  // Handle name change (controlled input)
   function handleNameChange(e) {
     setName(e.target.value);
     validateName(e.target.value);
+    setSaveError(""); setSaveSuccess("");
   }
 
-  // On form submit, only check validation; values already reflected in live card.
+  // Submit/save form via backend API, handle states
   function handleSubmit(e) {
     e.preventDefault();
-    let ok = validateName(name);
-    if (!ok) return;
-    // (Here we could add more validation, or "save" to remote, but this is live/local only).
+    setSaveError(""); setSaveSuccess("");
+    if (!validateName(name)) return;
+    setSaving(true);
+
+    // Only the supported fields are saved to backend
+    updateProfile({
+      name: name.trim(),
+      ecoPreferences: ecoPrefs,
+      avatarUrl: avatarType === "url" ? avatarSource : "", // only URLs saved; file uploads are for preview only
+    })
+      .then(() => {
+        setSaveSuccess("Profile saved successfully!");
+        setSaveError("");
+      })
+      .catch(err => {
+        setSaveError(err?.message || "Failed to save profile.");
+        setSaveSuccess("");
+      })
+      .finally(() => setSaving(false));
   }
 
   return (
