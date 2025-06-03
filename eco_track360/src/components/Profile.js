@@ -187,10 +187,109 @@ function Profile() {
       })
       .finally(() => setSaving(false));
   }
+  // Auth-required logic
+  if (!isAuthenticated) {
+    return (
+      <div>
+        <h2 className="mb-md">Profile</h2>
+        <div className="eco-card" style={{
+          color: "var(--accent-dark)",
+          textAlign: "center",
+          margin: "30px auto",
+          maxWidth: 400,
+          fontSize: 16,
+        }}>
+          You must be logged in to view or edit your profile.
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div>
       <h2 className="mb-md">Profile</h2>
+
+      {/* Global loading state */}
+      {loading && (
+        <div style={{ textAlign: "center", marginTop: 43 }}>
+          <LoadingSpinner />
+          <div style={{ marginTop: 9, color: "var(--accent)" }}>Loading profile...</div>
+        </div>
+      )}
+
+      {/* Load error */}
+      {loadError && !loading && (
+        <ErrorBanner
+          message={loadError}
+          onClose={() => setLoadError("")}
+          style={{marginBottom:16}}
+          actionLabel="Retry"
+          onAction={() => {
+            setLoading(true);
+            setLoadError("");
+            getProfile()
+              .then(profile => {
+                setName(profile.name || "");
+                setEcoPrefs(Array.isArray(profile.ecoPreferences) ? profile.ecoPreferences : []);
+                setAvatarSource(profile.avatarUrl || "");
+                setAvatarType("url");
+                setUploadedAvatar(null);
+                setErrors({});
+              })
+              .catch(err => setLoadError(err?.message || "Failed to load profile."))
+              .finally(() => setLoading(false));
+          }}
+        />
+      )}
+
+      {/* Success on save */}
+      {saveSuccess && (
+        <div
+          style={{
+            background: "linear-gradient(90deg, #bbefc0 80%, #cdffe2 100%)",
+            color: "#202924",
+            fontWeight: 660,
+            borderRadius: 9,
+            padding: "12px 16px",
+            margin: "12px 0 18px 0",
+            textAlign: "center",
+            fontSize: 15,
+            border: "1.5px solid var(--primary)",
+            boxShadow: "0 2px 16px #2e7d3234",
+            maxWidth:420,
+            marginLeft:"auto", marginRight:"auto"
+          }}
+          role="status"
+          aria-live="polite"
+        >
+          {saveSuccess}
+          <button
+            style={{
+              marginLeft: 16,
+              background: "none",
+              border: "none",
+              fontWeight: 900,
+              color: "#2e7d32",
+              fontSize: 19,
+              cursor: "pointer",
+              verticalAlign: "middle",
+            }}
+            title="Dismiss"
+            aria-label="Dismiss success notification"
+            onClick={() => setSaveSuccess("")}
+            tabIndex={0}
+          >×</button>
+        </div>
+      )}
+
+      {/* Error on save */}
+      {saveError && (
+        <ErrorBanner
+          message={saveError}
+          onClose={() => setSaveError("")}
+          style={{marginBottom:16}}
+        />
+      )}
 
       {/* Live profile summary card */}
       <div
@@ -281,6 +380,7 @@ function Profile() {
                 width: "100%"
               }}
               required
+              disabled={loading || saving}
             />
           </label>
           {errors.name && (
@@ -306,6 +406,7 @@ function Profile() {
                   if (fileInputRef.current) fileInputRef.current.value = "";
                 }}
                 style={{ marginRight: 4 }}
+                disabled={loading || saving}
               />
               Image URL
             </label>
@@ -320,6 +421,7 @@ function Profile() {
                   setErrors((err) => ({ ...err, avatar: undefined }));
                 }}
                 style={{ marginRight: 4 }}
+                disabled={loading || saving}
               />
               Upload Image
             </label>
@@ -341,6 +443,7 @@ function Profile() {
                 fontSize: 15,
                 width: "100%"
               }}
+              disabled={loading || saving}
             />
           ) : (
             <input
@@ -355,6 +458,7 @@ function Profile() {
               }}
               aria-label="Upload avatar image"
               onChange={handleFileChange}
+              disabled={loading || saving}
             />
           )}
           {errors.avatar && (
@@ -395,6 +499,7 @@ function Profile() {
                   checked={ecoPrefs.includes(pref.key)}
                   onChange={() => handlePrefChange(pref.key)}
                   style={{ marginRight: 7 }}
+                  disabled={loading || saving}
                 />
                 {pref.label}
               </label>
@@ -414,9 +519,9 @@ function Profile() {
               fontSize: 15,
               padding: "8px 24px"
             }}
-            disabled={!!errors.name}
+            disabled={!!errors.name || loading || saving}
           >
-            Save
+            {saving ? <span><LoadingSpinner /> Saving...</span> : "Save"}
           </button>
           <button
             className="btn"
@@ -429,16 +534,17 @@ function Profile() {
             }}
             type="button"
             onClick={handleReset}
+            disabled={loading || saving}
           >
             Reset
           </button>
         </div>
         <div style={{ color: "var(--text-faint)", fontSize: 13, marginTop: 11, textAlign: "center" }}>
-          Your changes update live – no data is saved remotely.
+          Profile changes save remotely to your account.
         </div>
       </form>
       <div className="eco-highlight text-center mt-md sm-text">
-        This profile is for demonstration only; all values stored in your browser session.
+        This profile is secure and persistent—changes load from and save to your private account.
       </div>
     </div>
   );
