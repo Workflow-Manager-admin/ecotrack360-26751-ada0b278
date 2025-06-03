@@ -165,6 +165,36 @@ body {
 
 /* --- ECO THEME REUSABLE CLASSES --- */
 
+/* Animation & transition utilities */
+.fade-in {
+  animation: fadeInEco 0.54s cubic-bezier(.36,1.28,.44,.93) 1;
+}
+.fade-out {
+  animation: fadeOutEco 0.5s cubic-bezier(.36,1.28,.44,.93) 1 forwards;
+}
+.slide-in-up {
+  animation: slideInUpEco 0.4s cubic-bezier(.42,1.22,.41,1.03) 1;
+}
+.scale-in {
+  animation: scaleInEco 0.38s cubic-bezier(.36,1.6,.4,.92) 1;
+}
+@keyframes fadeInEco {
+  from { opacity: 0; transform: translateY(8px);}
+  to   { opacity: 1; transform: translateY(0);}
+}
+@keyframes fadeOutEco {
+  from { opacity: 1; transform: translateY(0);}
+  to   { opacity: 0; transform: translateY(14px);}
+}
+@keyframes slideInUpEco {
+  from { opacity: 0; transform: translateY(32px);}
+  to   { opacity: 1; transform: translateY(0);}
+}
+@keyframes scaleInEco {
+  from { opacity: 0; transform: scale(0.95);}
+  to   { opacity: 1; transform: scale(1);}
+}
+
 /* Card styles */
 .eco-card,
 .card {
