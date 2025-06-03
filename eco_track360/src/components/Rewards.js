@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import UndoNotification from './UndoNotification';
 
 /**
  * PUBLIC_INTERFACE
@@ -59,6 +60,8 @@ function Rewards() {
   const [feedback, setFeedback] = useState(null);
   // Track already redeemed/donated reward labels
   const [rewardHistory, setRewardHistory] = useState([]);
+  // Track undo for redemption (null or {reward, prevCredits, prevHistory})
+  const [undoState, setUndoState] = useState(null);
 
   // Claim individual action credits
   // PUBLIC_INTERFACE
@@ -76,14 +79,17 @@ function Rewards() {
   // PUBLIC_INTERFACE
   function handleRedeem(reward) {
     if (ecoCredits >= reward.points && !rewardHistory.includes(reward.label)) {
+      const prevCredits = ecoCredits;
+      const prevHistory = [...rewardHistory];
       setEcoCredits(c => c - reward.points);
-      setFeedback({
-        message: reward.action === 'donate'
-          ? `Thank you for donating! ${reward.label} successful.`
-          : `Reward redeemed: ${reward.label}`,
-        type: "success"
-      });
       setRewardHistory(h => [...h, reward.label]);
+      // Remove any feedback and show undo notification
+      setFeedback(null);
+      setUndoState({
+        reward,
+        prevCredits,
+        prevHistory,
+      });
     } else if (rewardHistory.includes(reward.label)) {
       setFeedback({
         message: "You have already claimed this reward.",
